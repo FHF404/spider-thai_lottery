@@ -52,9 +52,10 @@ class HomeScreen extends StatelessWidget {
                   _buildSectionHeader("最近开奖历史", onViewHistory),
                   const SizedBox(height: 16),
                   if (historyResults.length > 1) ResultCard(result: historyResults[1]),
-                  _buildAIBanner(),
-                  const SizedBox(height: 16),
-                  ...historyResults.skip(2).take(4).map((r) => ResultCard(result: r)),
+                  if (historyResults.length > 2) ResultCard(result: historyResults[2]),
+                  // _buildAIBanner(),
+                  // const SizedBox(height: 16),
+                  // ...historyResults.skip(2).take(4).map((r) => ResultCard(result: r)),
                   const SizedBox(height: 100), // Bottom nav padding
                 ]),
               ),
