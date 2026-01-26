@@ -13,6 +13,8 @@ import 'package:thai_lottery/widgets/result_card.dart';
 import 'package:thai_lottery/models/lottery_result.dart';
 import 'package:thai_lottery/services/api_service.dart';
 import 'package:thai_lottery/theme.dart';
+import 'package:thai_lottery/utils/lottery_utils.dart';
+import 'package:thai_lottery/models/saved_ticket.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +56,7 @@ class _MainScreenState extends State<MainScreen> {
   String _currentView = 'home'; // home, history, profile, generator, check, result
   String _resultStatus = 'loss';
   String _checkedTicket = "";
+  Map<String, dynamic> _winStatus = {};
   
   // 数据状态
   LotteryResult? _latestResult;
@@ -88,14 +91,11 @@ class _MainScreenState extends State<MainScreen> {
   void _handleCheckTicket(String number) {
     setState(() {
       _checkedTicket = number;
-      // Simple logic: if ends in 6, win. Else loss.
-      if (_latestResult != null && number == _latestResult!.number) {
-        _resultStatus = 'win';
-      } else if (number.endsWith('6')) {
-         _resultStatus = 'win';
-      } else {
-        _resultStatus = 'loss';
-      }
+      // 使用工具类进行严谨核对
+      _winStatus = LotteryUtils.checkWinStatus(
+        SavedTicket(id: 'temp', number: number, addDate: '2000-01-01'), 
+        _latestResult
+      );
       _currentView = 'result';
     });
   }
@@ -150,8 +150,9 @@ class _MainScreenState extends State<MainScreen> {
         );
       case 'result':
         return ResultScreen(
-          status: _resultStatus,
+          winStatus: _winStatus,
           ticketNumber: _checkedTicket,
+          latestResult: _latestResult,
           onBack: () => _changeView('check'),
         );
       case 'saved_tickets':

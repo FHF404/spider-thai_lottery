@@ -39,13 +39,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final tickets = await StorageService.getTickets();
     final results = await ApiService.fetchLotteryData();
     
-    final history = results['history'] as List<LotteryResult>;
-    final currentComparingResult = history.length > 1 ? history[1] : results['latest'];
+    final currentComparingResult = results['latest'];
 
     // 关键修正：结算并持久化
-    bool hasChanged = LotteryUtils.finalizePendingTickets(tickets, currentComparingResult);
-    if (hasChanged) {
-      await StorageService.saveAllTickets(tickets);
+    if (currentComparingResult != null) {
+      bool hasChanged = LotteryUtils.finalizePendingTickets(tickets, currentComparingResult);
+      if (hasChanged) {
+        await StorageService.saveAllTickets(tickets);
+      }
     }
 
     setState(() {

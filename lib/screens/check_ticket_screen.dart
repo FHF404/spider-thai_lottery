@@ -82,63 +82,79 @@ class _CheckTicketScreenState extends State<CheckTicketScreen> {
   }
 
   Widget _buildDisplayArea() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40.0),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 48.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 20, offset: const Offset(0, 10))
+        ],
+      ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.stars, color: kRoyalGold, size: 18),
-              SizedBox(width: 8),
-              Text(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: kRoyalGold.withOpacity(0.1), shape: BoxShape.circle),
+                child: const Icon(Icons.stars, color: kRoyalGold, size: 16),
+              ),
+              const SizedBox(width: 10),
+              const Text(
                 "ROYAL THAI LOTTERY",
                 style: TextStyle(
                   color: kRoyalGold,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
                   letterSpacing: 2,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 40),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(6, (index) {
               final active = index < _input.length;
-              final val = active ? _input[index] : "_";
+              final val = active ? _input[index] : "";
               return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: 48,
-                height: 64,
+                margin: const EdgeInsets.symmetric(horizontal: 5),
+                width: 46,
+                height: 60,
                 decoration: BoxDecoration(
-                  color: active ? kPrimaryColor.withOpacity(0.05) : const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(16),
+                  color: active ? Colors.white : const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: active ? kPrimaryColor : Colors.grey.shade100,
-                    width: active ? 2 : 1,
+                    width: active ? 2 : 1.5,
                   ),
                   boxShadow: active
-                      ? [BoxShadow(color: kPrimaryColor.withOpacity(0.1), blurRadius: 10)]
+                      ? [BoxShadow(color: kPrimaryColor.withOpacity(0.12), blurRadius: 12, offset: const Offset(0, 4))]
                       : null,
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   val,
                   style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: active ? kPrimaryColor : Colors.grey.shade300,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: kPrimaryColor,
                   ),
                 ),
               );
             }),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            "请输入您的 6 位彩票号码",
-            style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500),
+          const SizedBox(height: 28),
+          Text(
+            _input.length == 6 ? "号码录入完成，点击查询按钮" : "请输入您的 6 位彩票号码",
+            style: TextStyle(
+              color: _input.length == 6 ? kPrimaryColor : Colors.grey.shade400,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),

@@ -71,17 +71,19 @@ class LotteryUtils {
 
     for (var ticket in tickets) {
       if (ticket.status == 'pending') {
-        // 泰国日期转换比较复杂，这里采用简单逻辑：
-        // 如果该期由于是“最新”而被用户看到并比对过，我们就锁定它
-        final status = checkWinStatus(ticket, latestResult);
-        
-        if (status['status'] != 'pending') {
-          ticket.status = status['status'];
-          ticket.winLabel = status['label'];
-          ticket.winAmount = status['amount'];
-          ticket.winIndices = status['indices'];
-          ticket.drawDate = latestResult.date;
-          hasChanged = true;
+        // 只有当开奖日期 大于等于 购买/添加日期时，才进行结算
+        // 这符合“购买后的第一场开奖才是有效的”逻辑
+        if (latestResult.date.compareTo(ticket.addDate) >= 0) {
+          final status = checkWinStatus(ticket, latestResult);
+          
+          if (status['status'] != 'pending') {
+            ticket.status = status['status'];
+            ticket.winLabel = status['label'];
+            ticket.winAmount = status['amount'];
+            ticket.winIndices = status['indices'];
+            ticket.drawDate = latestResult.date;
+            hasChanged = true;
+          }
         }
       }
     }

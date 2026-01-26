@@ -32,14 +32,14 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
     final results = await ApiService.fetchLotteryData();
     final tickets = await StorageService.getTickets();
     
-    final history = results['history'] as List<LotteryResult>;
-    // 使用历史第2条进行 UI 测试对比，如果需要真实数据改为 latest
-    final currentComparingResult = history.length > 1 ? history[1] : results['latest'];
+    final currentComparingResult = results['latest'];
 
     // 关键修正：对待开奖的进行结算并持久化存储
-    bool hasChanged = LotteryUtils.finalizePendingTickets(tickets, currentComparingResult);
-    if (hasChanged) {
-      await StorageService.saveAllTickets(tickets);
+    if (currentComparingResult != null) {
+      bool hasChanged = LotteryUtils.finalizePendingTickets(tickets, currentComparingResult);
+      if (hasChanged) {
+        await StorageService.saveAllTickets(tickets);
+      }
     }
     
     setState(() {
