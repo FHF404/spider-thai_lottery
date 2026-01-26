@@ -5,6 +5,7 @@ import 'package:thai_lottery/models/saved_ticket.dart';
 import 'package:thai_lottery/models/lottery_result.dart';
 import 'package:thai_lottery/services/api_service.dart';
 import 'package:intl/intl.dart';
+import 'package:thai_lottery/utils/lottery_utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Function(String) onChangeView;
@@ -40,7 +41,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     
     setState(() {
       _tickets = tickets;
-      _latestResult = results['latest'];
+      final history = results['history'] as List<LotteryResult>;
+      _latestResult = history.length > 1 ? history[1] : results['latest'];
       _isLoading = false;
     });
   }
@@ -76,12 +78,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 简单的中奖检查（复用 SavedTicketsScreen 的逻辑思路）
   bool _isTicketWon(SavedTicket ticket) {
-    if (_latestResult == null) return false;
-    final number = ticket.number;
-    return number == _latestResult!.number || 
-           number.endsWith(_latestResult!.bottom2) ||
-           _latestResult!.top3.split(', ').any((v) => number.substring(0, 3) == v.replaceAll(' ', '')) ||
-           _latestResult!.bottom3.split(', ').any((v) => number.substring(3) == v.replaceAll(' ', ''));
+    final winStatus = LotteryUtils.checkWinStatus(ticket, _latestResult);
+    return winStatus['status'] == 'won';
   }
 
   @override

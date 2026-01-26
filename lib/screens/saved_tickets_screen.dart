@@ -4,6 +4,7 @@ import 'package:thai_lottery/models/saved_ticket.dart';
 import 'package:thai_lottery/services/storage_service.dart';
 import 'package:thai_lottery/services/api_service.dart';
 import 'package:thai_lottery/theme.dart';
+import 'package:thai_lottery/utils/lottery_utils.dart';
 
 class SavedTicketsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -41,37 +42,7 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
   }
 
   Map<String, dynamic> _checkWinStatus(SavedTicket ticket) {
-    if (_latestResult == null) return {'status': 'pending', 'label': '待开奖'};
-    
-    final number = ticket.number;
-    final winNum = _latestResult!.number;
-    final b2 = _latestResult!.bottom2;
-    final t3 = _latestResult!.top3.split(', ').map((e) => e.replaceAll(' ', '')).toList();
-    final b3 = _latestResult!.bottom3.split(', ').map((e) => e.replaceAll(' ', '')).toList();
-
-    // 1st Prize
-    if (number == winNum) {
-      return {'status': 'won', 'label': '一等奖', 'prize': '1级', 'indices': [0, 1, 2, 3, 4, 5], 'amount': '6,000,000 泰铢'};
-    }
-    
-    // Last 2
-    if (number.endsWith(b2)) {
-      return {'status': 'won', 'label': '后2位', 'prize': '末2', 'indices': [4, 5], 'amount': '2,000 泰铢'};
-    }
-
-    // Front 3
-    final front3 = number.substring(0, 3);
-    if (t3.contains(front3)) {
-      return {'status': 'won', 'label': '前3位', 'prize': '前3', 'indices': [0, 1, 2], 'amount': '4,000 泰铢'};
-    }
-
-    // Back 3
-    final back3 = number.substring(3);
-    if (b3.contains(back3)) {
-      return {'status': 'won', 'label': '后3位', 'prize': '后3', 'indices': [3, 4, 5], 'amount': '4,000 泰铢'};
-    }
-
-    return {'status': 'lost', 'label': '未中奖'};
+    return LotteryUtils.checkWinStatus(ticket, _latestResult);
   }
 
   List<SavedTicket> get _filteredTickets {
