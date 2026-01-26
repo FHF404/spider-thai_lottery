@@ -1,1 +1,19 @@
-{"error": "Failed to scrape initial data"}
+{
+    "latest": {
+        "date": "17 มกราคม 2569",
+        "number": "878972",
+        "top3": "299, 815",
+        "bottom3": "662, 363",
+        "bottom2": "02"
+    },
+    "history": [
+        {
+            "date": "17 มกราคม 2569",
+            "number": "878972",
+            "top3": "299, 815",
+            "bottom3": "662, 363",
+            "bottom2": "02"
+        }
+    ],
+    "last_updated": "2026-01-26 10:12:41"
+}
