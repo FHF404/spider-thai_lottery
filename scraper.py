@@ -4,11 +4,16 @@ import json
 import os
 from datetime import datetime
 
+import re
+
 def scrape_lotto():
     url = "https://news.sanook.com/lotto/"
-    print(f"Fetching {url}...")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    print(f"Fetching {url} with headers...")
     try:
-        response = requests.get(url, timeout=15)
+        response = requests.get(url, headers=headers, timeout=15)
         response.encoding = 'utf-8'
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -18,30 +23,48 @@ def scrape_lotto():
         print(f"Detected Date: {date_str}")
 
         # 2. 提取各项奖项
-        # 尝试通过 ID 查找 (Sanook 常用 ID)
-        prize1 = soup.find(id="number1")
-        prize2 = soup.find(id="number2")
+        # Sanook 常用 ID: number1 (1st Prize), number2 (2-digit)
+        prize1 = soup.find(id="number1") or soup.select_one('strong[data-prize="1"]')
+        prize2 = soup.find(id="number2") or soup.select_one('strong[data-prize="2"]')
         
-        # 3位前缀/后缀通常在特定的区块中
-        def get_by_label(label_text):
-            label = soup.find(lambda tag: tag.name == "span" and label_text in tag.text)
+        def get_by_label(label_regex):
+            # 使用正则匹配泰文标签，解决精确匹配失效问题
+            label = soup.find(lambda tag: tag.name == "span" and re.search(label_regex, tag.text))
             if label:
-                # 通常数字在 label 的后续节点或父节点的特定子节点中
                 container = label.find_parent('div', class_='lotto-check__number')
+                if not container:
+                    # 尝试寻找兄弟节点中的 strong
+                    container = label.find_next('div')
+                
                 if container:
                     nums = container.find_all('strong')
-                    return ", ".join([n.text.strip() for n in nums])
+                    return ", ".join([n.text.strip() for n in nums if n.text.strip()])
+                
+                # 直接找后续的 strong
+                next_strongs = label.find_all_next('strong', limit=2)
+                return ", ".join([n.text.strip() for n in next_strongs])
             return "N/A"
 
         number = prize1.text.strip() if prize1 else "N/A"
         bottom2 = prize2.text.strip() if prize2 else "N/A"
-        top3 = get_by_label("เลขหน้า 3 ตัว")
-        bottom3 = get_by_label("เลขท้าย 3 ตัว")
+        
+        # 泰文匹配：เลขหน้า 3 ตัว (前3位), เลขท้าย 3 ตัว (后3位)
+        top3 = get_by_label(r"เลขหน้า\s*3\s*ตัว")
+        bottom3 = get_by_label(r"เลขท้าย\s*3\s*ตัว")
 
-        print(f"Data: {number}, {bottom2}, {top3}, {bottom3}")
+        print(f"Extracted -> 1st: {number}, 2-digit: {bottom2}, Top3: {top3}, Bottom3: {bottom3}")
 
         if number == "N/A" and bottom2 == "N/A":
-            raise Exception("Failed to find main prizes. Structure might have changed.")
+            # 最后的尝试：按类名找 strong
+            strongs = soup.find_all('strong', class_='lotto-check__number')
+            if len(strongs) >= 6:
+                number = strongs[0].text.strip()
+                top3 = f"{strongs[1].text.strip()}, {strongs[2].text.strip()}"
+                bottom3 = f"{strongs[3].text.strip()}, {strongs[4].text.strip()}"
+                bottom2 = strongs[5].text.strip()
+                print("Fallback to class-based selection worked.")
+            else:
+                raise Exception("Failed to find main prizes. HTML likely changed or blocks scraping.")
 
         latest = {
             "date": date_str,
@@ -51,14 +74,14 @@ def scrape_lotto():
             "bottom2": bottom2
         }
 
-        # 构建历史记录 (暂时用 Latest 填充，实际应从历史列表爬取)
+        # 历史记录逻辑保持不变
         history = [latest]
-        
-        # 尝试从历史链接列表中提取前几个
         history_items = soup.find_all('div', class_='lotto-check__history-item', limit=10)
         for item in history_items:
             try:
-                h_date = item.find('a').text.strip()
+                link = item.find('a')
+                if not link: continue
+                h_date = link.text.strip()
                 h_nums = item.find_all('strong')
                 if len(h_nums) >= 2:
                     history.append({
@@ -83,10 +106,6 @@ def scrape_lotto():
         
     except Exception as e:
         print(f"CRITICAL ERROR: {e}")
-        # 输出部分 HTML 以便在 GitHub Logs 中分析
-        if 'response' in locals():
-            print("HTML Snippet:")
-            print(response.text[:1000])
         raise e
 
 if __name__ == "__main__":
