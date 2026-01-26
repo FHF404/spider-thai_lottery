@@ -204,7 +204,7 @@ class ResultCard extends StatelessWidget {
                       const SizedBox(height: 16),
                       // 使用横向平铺布局填充空间
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             flex: 6,
