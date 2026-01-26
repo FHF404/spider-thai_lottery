@@ -189,7 +189,7 @@ class ResultCard extends StatelessWidget {
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -208,28 +208,33 @@ class ResultCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 16),
+                      // 使用横向平铺布局填充空间
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          _buildHistoryMainItem("一等奖", result.number, kRoyalGold),
-                          const SizedBox(width: 24),
-                          _buildHistoryMainItem("后2位", result.bottom2, kPrimaryColor),
+                          Expanded(
+                            flex: 5,
+                            child: _buildHistoryMainItem("一等奖", result.number, kRoyalGold),
+                          ),
+                          Container(width: 1, height: 30, color: Colors.grey.shade100),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            flex: 3,
+                            child: _buildHistoryMainItem("后2位", result.bottom2, kPrimaryColor),
+                          ),
+                          Container(width: 1, height: 30, color: Colors.grey.shade100),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            flex: 4,
+                            child: _buildHistorySubItem("前3位", result.top3),
+                          ),
+                          Container(width: 1, height: 30, color: Colors.grey.shade100),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            flex: 4,
+                            child: _buildHistorySubItem("后3位", result.bottom3),
+                          ),
                         ],
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: kBackground,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            _buildHistorySubItem("前3位", result.top3),
-                            const Spacer(),
-                            _buildHistorySubItem("后3位", result.bottom3),
-                            const Spacer(),
-                          ],
-                        ),
                       ),
                     ],
                   ),
