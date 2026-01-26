@@ -193,19 +193,13 @@ class ResultCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            result.date,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: kPrimaryDark,
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-                        ],
+                      Text(
+                        result.date,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: kPrimaryDark,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       // 使用横向平铺布局填充空间
@@ -286,7 +280,7 @@ class ResultCard extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           value,
           style: TextStyle(
@@ -306,19 +300,19 @@ class ResultCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.grey,
-            fontSize: 9,
+          style: TextStyle(
+            color: Colors.grey.shade500,
+            fontSize: 10,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 6),
         Text(
           value,
           style: const TextStyle(
             color: kPrimaryDark,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ],
