@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import '../models/lottery_result.dart';
 import '../widgets/result_card.dart';
 import '../theme.dart';
