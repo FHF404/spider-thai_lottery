@@ -46,12 +46,15 @@ class ApiService {
   }
 
   static Map<String, dynamic> _processData(Map<String, dynamic> json) {
-    final latestRaw = json['latest'];
     final historyRaw = json['history'] as List;
+    final history = historyRaw.map((item) => LotteryResult.fromJson(item)).toList();
+    
+    // 过滤掉包含 "X" 的数据（尚未开奖的占位数据）
+    final validHistory = history.where((item) => !item.number.contains('X')).toList();
     
     return {
-      'latest': LotteryResult.fromJson(latestRaw),
-      'history': historyRaw.map((item) => LotteryResult.fromJson(item)).toList(),
+      'latest': validHistory.isNotEmpty ? validHistory.first : (history.isNotEmpty ? history.first : null),
+      'history': validHistory,
       'last_updated': json['last_updated'] ?? '未知',
     };
   }
