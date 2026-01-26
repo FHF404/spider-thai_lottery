@@ -49,8 +49,20 @@ class ApiService {
     final historyRaw = json['history'] as List;
     final history = historyRaw.map((item) => LotteryResult.fromJson(item)).toList();
     
-    // 过滤掉包含 "X" 的数据（尚未开奖的占位数据）
-    final validHistory = history.where((item) => !item.number.contains('X')).toList();
+    // 1. 过滤掉包含 "X" 或 "x" 的数据（尚未开奖的占位数据）
+    final filteredHistory = history.where((item) {
+      final numbers = "${item.number}${item.bottom2}${item.top3}${item.bottom3}".toLowerCase();
+      return !numbers.contains('x');
+    }).toList();
+
+    // 2. 去重（基于日期），防止抓取过程中的重复录入
+    final Map<String, LotteryResult> uniqueHistoryMap = {};
+    for (var item in filteredHistory) {
+      if (!uniqueHistoryMap.containsKey(item.date)) {
+        uniqueHistoryMap[item.date] = item;
+      }
+    }
+    final validHistory = uniqueHistoryMap.values.toList();
     
     return {
       'latest': validHistory.isNotEmpty ? validHistory.first : (history.isNotEmpty ? history.first : null),
