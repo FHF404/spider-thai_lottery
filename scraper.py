@@ -10,100 +10,90 @@ def scrape_lotto():
     base_url = "https://lotto.api.rayriffy.com"
     file_path = 'lotto_results.json'
     
+    def is_valid(item):
+        # 检查所有核心字段是否包含 'x'
+        content = f"{item.get('number', '')}{item.get('top3', '')}{item.get('bottom3', '')}{item.get('bottom2', '')}".lower()
+        return 'x' not in content and 'n/a' not in content
+
     # 1. 尝试加载现有数据
     existing_data = None
     if os.path.exists(file_path):
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 existing_data = json.load(f)
-        except:
-            print("Could not read existing lotto_results.json")
+        except: pass
 
-    # 2. 只有当现有数据已经包含足够多的历史（比如 48 期，约 24 个月）时，才执行增量更新
-    # 否则，强制执行一次全量抓取来补齐历史数据
+    # 2. 尝试执行增量更新 (仅当已有 48 条以上有效数据时)
     if existing_data and "history" in existing_data and len(existing_data["history"]) >= 48:
-        print(f"History has {len(existing_data['history'])} entries. Performing incremental update...")
+        print("Existing valid history found. Checking for new draw...")
         try:
-            latest_url = f"{base_url}/latest"
-            resp = requests.get(latest_url, timeout=15)
-            resp.raise_for_status()
+            resp = requests.get(f"{base_url}/latest", timeout=15)
             api_data = resp.json()["response"]
             
-            latest_date = api_data["date"]
-            if existing_data["history"][0]["date"] == latest_date:
-                print(f"Latest draw ({latest_date}) already exists. No update.")
-                return
-
             def find_run(runs, rid):
                 return next((", ".join(n["number"]) for n in runs if n["id"] == rid), "N/A")
 
             prizes = api_data.get("prizes", [])
             runs = api_data.get("runningNumbers", [])
-            
             new_item = {
-                "date": latest_date,
+                "date": api_data["date"],
                 "number": prizes[0]["number"][0] if prizes else "N/A",
                 "top3": find_run(runs, "runningNumberFrontThree"),
                 "bottom3": find_run(runs, "runningNumberBackThree"),
                 "bottom2": find_run(runs, "runningNumberBackTwo")
             }
             
-            new_history = [new_item] + existing_data["history"]
-            final_history = new_history[:100] # 最多保留 100 期
-            
-            updated_data = {
-                "latest": new_item,
-                "history": final_history,
-                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-            
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(updated_data, f, ensure_ascii=False, indent=4)
-            print(f"Added new draw: {latest_date}")
-            return
-            
+            if is_valid(new_item):
+                if existing_data["history"][0]["date"] != new_item["date"]:
+                    print(f"New valid draw found: {new_item['date']}")
+                    updated_data = {
+                        "latest": new_item,
+                        "history": ([new_item] + existing_data["history"])[:100],
+                        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        json.dump(updated_data, f, ensure_ascii=False, indent=4)
+                else:
+                    print("Already up to date.")
+                return
+            else:
+                print("Latest result from API is still pending (contains X). Skipping update.")
+                return
         except Exception as e:
-            print(f"Incremental update failed: {e}. Falling back to full fetch.")
+            print(f"Incremental update error: {e}")
 
-    # 3. 全量抓取逻辑 (初次运行或历史不全时触发)
-    print("Performing full historical fetch (Target: 24 months/50 draws)...")
+    # 3. 全量抓取逻辑 (初始化或数据不足时)
+    print("Performing full historical fetch and filtering...")
     try:
         all_draw_ids = []
-        # 抓取前 4 页列表以获取足够的 ID
         for page in range(1, 5):
-            list_url = f"{base_url}/list/{page}"
-            resp = requests.get(list_url, timeout=10)
+            resp = requests.get(f"{base_url}/list/{page}", timeout=10)
             if resp.status_code == 200:
-                page_data = resp.json()
-                if page_data.get("status") == "success":
-                    all_draw_ids.extend([item["id"] for item in page_data["response"]])
+                all_draw_ids.extend([item["id"] for item in resp.json()["response"]])
             time.sleep(0.5)
 
-        target_ids = all_draw_ids[:55] # 抓取 55 条确保至少有 50 条成功
         history = []
-        for i, draw_id in enumerate(target_ids):
-            print(f"[{i+1}/{len(target_ids)}] Fetching detail: {draw_id}")
-            detail_url = f"{base_url}/lotto/{draw_id}"
+        for draw_id in all_draw_ids[:55]:
             try:
-                resp = requests.get(detail_url, timeout=10)
-                if resp.status_code == 200:
-                    res = resp.json()["response"]
-                    def find_prize(p, pid):
-                        return next((n["number"][0] for n in p if n["id"] == pid), "N/A")
-                    def find_run(r, rid):
-                        return next((", ".join(n["number"]) for n in r if n["id"] == rid), "N/A")
+                resp = requests.get(f"{base_url}/lotto/{draw_id}", timeout=10)
+                res = resp.json()["response"]
+                def f_p(p, i): return next((n["number"][0] for n in p if n["id"] == i), "N/A")
+                def f_r(r, i): return next((", ".join(n["number"]) for n in r if n["id"] == i), "N/A")
 
-                    history.append({
-                        "date": res["date"],
-                        "number": find_prize(res.get("prizes", []), "prizeFirst"),
-                        "top3": find_run(res.get("runningNumbers", []), "runningNumberFrontThree"),
-                        "bottom3": find_run(res.get("runningNumbers", []), "runningNumberBackThree"),
-                        "bottom2": find_run(res.get("runningNumbers", []), "runningNumberBackTwo")
-                    })
+                item = {
+                    "date": res["date"],
+                    "number": f_p(res.get("prizes", []), "prizeFirst"),
+                    "top3": f_r(res.get("runningNumbers", []), "runningNumberFrontThree"),
+                    "bottom3": f_r(res.get("runningNumbers", []), "runningNumberBackThree"),
+                    "bottom2": f_r(res.get("runningNumbers", []), "runningNumberBackTwo")
+                }
+                if is_valid(item):
+                    history.append(item)
                 time.sleep(0.2)
-            except Exception: pass
+            except: pass
 
         if history:
+            # 确保 latest 是历史中最新的一条有效数据
             data = {
                 "latest": history[0],
                 "history": history,
@@ -111,7 +101,7 @@ def scrape_lotto():
             }
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
-            print(f"Full fetch complete: {len(history)} entries saved.")
+            print(f"Successfully saved {len(history)} valid entries.")
             
     except Exception as e:
         print(f"CRITICAL ERROR: {e}")
