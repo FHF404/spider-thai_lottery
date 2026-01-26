@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:thai_lottery/widgets/result_card.dart';
 import 'package:thai_lottery/theme.dart';
+import 'dart:async';
+import 'dart:math';
 
 class GeneratorScreen extends StatefulWidget {
   const GeneratorScreen({super.key});
@@ -10,13 +11,99 @@ class GeneratorScreen extends StatefulWidget {
 }
 
 class _GeneratorScreenState extends State<GeneratorScreen> {
-  String _mode = 'phone'; // 'phone' | 'birthday' | 'random'
-  List<int>? _generatedNumbers;
+  String _mode = 'birthday'; // 'phone' | 'birthday' | 'random'
+  
+  // Birthday state (B.E.)
+  int _selectedYearBE = DateTime.now().year + 543;
+  int _selectedMonth = DateTime.now().month;
+  int _selectedDay = DateTime.now().day;
+  
+  // Phone state
+  final TextEditingController _phoneController = TextEditingController();
+  
+  // Animation state
+  bool _isCalculating = false;
+  List<String> _displayNumbers = List.filled(6, "-");
+  List<int> _finalNumbers = [];
+  Timer? _animTimer;
+  final List<bool> _lockedStates = List.filled(6, true);
 
-  void _handleGenerate() {
+  @override
+  void dispose() {
+    _animTimer?.cancel();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  void _startCalculation() {
+    if (_isCalculating) return;
+
+    // Generate deterministic final numbers based on input
+    _finalNumbers = _mode == 'birthday' 
+        ? _generateFromBirthday() 
+        : (_mode == 'phone' ? _generateFromPhone() : _generateRandom());
+
     setState(() {
-      _generatedNumbers = [8, 2, 9, 5, 1, 7];
+      _isCalculating = true;
+      _displayNumbers = List.filled(6, "0");
+      for (int i = 0; i < 6; i++) _lockedStates[i] = false;
     });
+
+    int frameCount = 0;
+    _animTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      frameCount++;
+      
+      setState(() {
+        for (int i = 0; i < 6; i++) {
+          if (!_lockedStates[i]) {
+            _displayNumbers[i] = Random().nextInt(10).toString();
+          }
+        }
+      });
+
+      // Gradually lock numbers
+      if (frameCount == 20) _lockedStates[0] = true;
+      if (frameCount == 30) _lockedStates[1] = true;
+      if (frameCount == 40) _lockedStates[2] = true;
+      if (frameCount == 50) _lockedStates[3] = true;
+      if (frameCount == 60) _lockedStates[4] = true;
+      if (frameCount == 70) {
+        _lockedStates[5] = true;
+        timer.cancel();
+        setState(() {
+          for (int i = 0; i < 6; i++) {
+            _displayNumbers[i] = _finalNumbers[i].toString();
+          }
+          _isCalculating = false;
+        });
+      }
+      
+      // Update those that are locked to their final value
+      for(int i=0; i<6; i++) {
+        if (_lockedStates[i]) {
+          _displayNumbers[i] = _finalNumbers[i].toString();
+        }
+      }
+    });
+  }
+
+  List<int> _generateFromBirthday() {
+    // Seed random with date
+    final seed = _selectedYearBE * 10000 + _selectedMonth * 100 + _selectedDay;
+    final rand = Random(seed);
+    return List.generate(6, (_) => rand.nextInt(10));
+  }
+
+  List<int> _generateFromPhone() {
+    final phoneStr = _phoneController.text;
+    final seed = int.tryParse(phoneStr.replaceAll(RegExp(r'\D'), '')) ?? 0;
+    final rand = Random(seed);
+    return List.generate(6, (_) => rand.nextInt(10));
+  }
+
+  List<int> _generateRandom() {
+    final rand = Random();
+    return List.generate(6, (_) => rand.nextInt(10));
   }
 
   @override
@@ -28,19 +115,17 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-          onPressed: () {}, // Handled by MainScreen
+          onPressed: () {
+            // Navigator is handled in parent switch usually, 
+            // but for safety in standalone test:
+            if (Navigator.canPop(context)) Navigator.pop(context);
+          },
         ),
         title: const Text(
           "幸运号码生成器",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -50,10 +135,11 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  if (_mode == 'phone') _buildPhoneMode(),
+                  _buildResultDisplay(),
+                  const SizedBox(height: 32),
                   if (_mode == 'birthday') _buildBirthdayMode(),
+                  if (_mode == 'phone') _buildPhoneMode(),
                   if (_mode == 'random') _buildRandomMode(),
-                  if (_generatedNumbers != null) _buildResultDisplay(),
                   const SizedBox(height: 100),
                 ],
               ),
@@ -92,7 +178,9 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
       child: GestureDetector(
         onTap: () => setState(() {
           _mode = mode;
-          _generatedNumbers = null;
+          _displayNumbers = List.filled(6, "-");
+          _isCalculating = false;
+          _animTimer?.cancel();
         }),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -117,48 +205,6 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
     );
   }
 
-  Widget _buildPhoneMode() {
-    return Column(
-      children: [
-        const Text(
-          "输入您的手机号",
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: kPrimaryDark),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          "将您的号码转化为繁荣与好运的象征",
-          style: TextStyle(color: kPrimaryDark.withOpacity(0.6), fontSize: 14),
-        ),
-        const SizedBox(height: 32),
-        TextField(
-          keyboardType: TextInputType.phone,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kPrimaryDark),
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.phone_iphone, color: kPrimaryColor),
-            hintText: "请输入11位手机号码",
-            hintStyle: const TextStyle(fontWeight: FontWeight.normal, color: Colors.grey),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: kPrimaryColor.withOpacity(0.2), width: 2),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: kPrimaryColor.withOpacity(0.1), width: 2),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: kPrimaryColor, width: 2),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        _buildMagicButton("开始魔法计算", Icons.auto_fix_high),
-      ],
-    );
-  }
-
   Widget _buildBirthdayMode() {
     return Column(
       children: [
@@ -173,7 +219,7 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
         ),
         const SizedBox(height: 32),
         Container(
-          padding: const EdgeInsets.all(16),
+          height: 180,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -182,11 +228,25 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
           ),
           child: Row(
             children: [
-              _buildPickerColumn("年份", "1995", "1996", "1997"),
-              Container(width: 1, height: 80, color: Colors.grey.shade100),
-              _buildPickerColumn("月份", "05月", "06月", "07月"),
-              Container(width: 1, height: 80, color: Colors.grey.shade100),
-              _buildPickerColumn("日期", "14", "15", "16"),
+              _buildWheelPicker(
+                label: "年份 (佛曆)", 
+                items: List.generate(101, (i) => (DateTime.now().year + 543 - i)),
+                selectedVal: _selectedYearBE,
+                onChanged: (val) => setState(() => _selectedYearBE = val),
+              ),
+              _buildWheelPicker(
+                label: "月份", 
+                items: List.generate(12, (i) => i + 1),
+                format: (v) => v.toString().padLeft(2, '0') + "月",
+                selectedVal: _selectedMonth,
+                onChanged: (val) => setState(() => _selectedMonth = val),
+              ),
+              _buildWheelPicker(
+                label: "日期", 
+                items: List.generate(31, (i) => i + 1),
+                selectedVal: _selectedDay,
+                onChanged: (val) => setState(() => _selectedDay = val),
+              ),
             ],
           ),
         ),
@@ -196,93 +256,83 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
     );
   }
 
-  Widget _buildPickerColumn(String label, String prev, String current, String next) {
+  Widget _buildWheelPicker({
+    required String label, 
+    required List<int> items, 
+    required int selectedVal,
+    required ValueChanged<int> onChanged,
+    String Function(int)? format,
+  }) {
+    final int initialIndex = items.indexOf(selectedVal);
     return Expanded(
       child: Column(
         children: [
-          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 8),
-          Text(prev, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            decoration: BoxDecoration(
-              color: kPrimaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.symmetric(horizontal: BorderSide(color: kPrimaryColor.withOpacity(0.3), width: 2)),
+          const SizedBox(height: 12),
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+          Expanded(
+            child: ListWheelScrollView.useDelegate(
+              itemExtent: 40,
+              physics: const FixedExtentScrollPhysics(),
+              onSelectedItemChanged: (index) => onChanged(items[index]),
+              controller: FixedExtentScrollController(initialItem: initialIndex > -1 ? initialIndex : 0),
+              childDelegate: ListWheelChildBuilderDelegate(
+                childCount: items.length,
+                builder: (context, index) {
+                  final val = items[index];
+                  final isSelected = val == selectedVal;
+                  return Center(
+                    child: Text(
+                      format != null ? format(val) : val.toString(),
+                      style: TextStyle(
+                        fontSize: isSelected ? 20 : 16,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? kPrimaryColor : Colors.grey.shade400,
+                      ),
+                    ),
+                  );
+                }
+              ),
             ),
-            child: Text(current, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kPrimaryColor)),
           ),
-          const SizedBox(height: 4),
-          Text(next, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+          const SizedBox(height: 12),
         ],
       ),
     );
   }
 
-  Widget _buildRandomMode() {
+  Widget _buildPhoneMode() {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const SizedBox(height: 40),
         const Text(
-          "点击生成幸运号码",
+          "输入您的手机号",
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: kPrimaryDark),
         ),
-        const SizedBox(height: 8),
-        Text(
-          "皇家占星随机算法为您即时演算",
-          style: TextStyle(color: kPrimaryDark.withOpacity(0.6), fontSize: 14),
-        ),
-        const SizedBox(height: 60),
-        GestureDetector(
-          onTap: _handleGenerate,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: kPrimaryColor.withOpacity(0.2), width: 2),
-                ),
-              ),
-              Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: kPrimaryDark,
-                  border: Border.all(color: kRoyalGold, width: 4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF673AB7).withOpacity(0.4),
-                      blurRadius: 40,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.stars, color: kRoyalGold, size: 48),
-                    SizedBox(height: 8),
-                    Text(
-                      "开始生成",
-                      style: TextStyle(
-                        color: kRoyalGold,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        const SizedBox(height: 32),
+        TextField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          onChanged: (_) => setState(() => _displayNumbers = List.filled(6, "-")),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kPrimaryDark),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.phone_iphone, color: kPrimaryColor),
+            hintText: "请输入手机号码",
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: kPrimaryColor.withOpacity(0.1))),
           ),
         ),
+        const SizedBox(height: 24),
+        _buildMagicButton("开始魔法计算", Icons.auto_fix_high),
+      ],
+    );
+  }
+
+  Widget _buildRandomMode() {
+    return Column(
+      children: [
+        const SizedBox(height: 24),
+        _buildMagicButton("随机抽取幸运号", Icons.shuffle),
       ],
     );
   }
@@ -292,7 +342,7 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton.icon(
-        onPressed: _handleGenerate,
+        onPressed: _isCalculating ? null : _startCalculation,
         icon: Icon(icon, color: kRoyalGold),
         label: Text(label),
         style: ElevatedButton.styleFrom(
@@ -308,70 +358,103 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
 
   Widget _buildResultDisplay() {
     return Container(
-      margin: const EdgeInsets.only(top: 40),
-      padding: const EdgeInsets.all(32),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, Colors.grey.shade50],
+        ),
         borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: kRoyalGold.withOpacity(0.2), width: 2),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20)],
+        border: Border.all(color: kRoyalGold.withOpacity(0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: kPrimaryColor.withOpacity(0.08),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          )
+        ],
       ),
       child: Stack(
         children: [
-          // Corner accents (simplified for flutter)
-          const Positioned(top: 0, left: 0, child: Icon(Icons.apps, size: 16, color: kRoyalGold)),
-          const Positioned(top: 0, right: 0, child: Icon(Icons.apps, size: 16, color: kRoyalGold)),
-          const Positioned(bottom: 0, left: 0, child: Icon(Icons.apps, size: 16, color: kRoyalGold)),
-          const Positioned(bottom: 0, right: 0, child: Icon(Icons.apps, size: 16, color: kRoyalGold)),
+          const Positioned(top: 0, left: 0, child: Icon(Icons.auto_awesome, size: 14, color: kRoyalGold)),
+          const Positioned(top: 0, right: 0, child: Icon(Icons.auto_awesome, size: 14, color: kRoyalGold)),
+          const Positioned(bottom: 0, left: 0, child: Icon(Icons.auto_awesome, size: 14, color: kRoyalGold)),
+          const Positioned(bottom: 0, right: 0, child: Icon(Icons.auto_awesome, size: 14, color: kRoyalGold)),
           
           Column(
             children: [
-              const Text(
-                "您的手机幸运号",
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: kPrimaryColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _mode == 'birthday' ? "✨ 您的生日幸运号 ✨" : (_mode == 'phone' ? "📱 您的手机幸运号 📱" : "🎲 随机幸运号 🎲"),
+                  style: const TextStyle(
+                    color: kPrimaryColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: _generatedNumbers!.map((n) => Container(
+                children: _displayNumbers.map((n) => Container(
                   margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: 40,
-                  height: 56,
+                  width: 44,
+                  height: 60,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade100),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                      if (n != "-" && _isCalculating)
+                        BoxShadow(
+                          color: kPrimaryColor.withOpacity(0.2),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        )
+                    ],
                   ),
                   alignment: Alignment.center,
                   child: Text(
-                    n.toString(),
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: kPrimaryDark),
+                    n,
+                    style: TextStyle(
+                      fontSize: 32, 
+                      fontWeight: FontWeight.w900, 
+                      color: n == "-" ? Colors.grey.shade200 : kPrimaryColor,
+                      fontFamily: 'monospace'
+                    ),
                   ),
                 )).toList(),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(width: 32, height: 1, color: kPrimaryColor.withOpacity(0.2)),
+                  Container(width: 40, height: 1, color: kRoyalGold.withOpacity(0.2)),
                   const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8.0),
+                    padding: EdgeInsets.symmetric(horizontal: 12.0),
                     child: Text(
-                      "Royal Thai Blessing",
+                      "ROYAL THAI BLESSING",
                       style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
+                        fontSize: 9, 
+                        color: kRoyalGold, 
+                        fontWeight: FontWeight.w900, 
+                        letterSpacing: 2.5
                       ),
                     ),
                   ),
-                  Container(width: 32, height: 1, color: kPrimaryColor.withOpacity(0.2)),
+                  Container(width: 40, height: 1, color: kRoyalGold.withOpacity(0.2)),
                 ],
               ),
             ],
