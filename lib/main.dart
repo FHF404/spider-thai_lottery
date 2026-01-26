@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'screens/home_screen.dart';
-import 'screens/history_screen.dart';
-import 'screens/generator_screen.dart';
-import 'screens/profile_screen.dart';
-import 'screens/check_ticket_screen.dart';
-import 'screens/result_screen.dart';
-import 'screens/saved_tickets_screen.dart';
-import 'widgets/result_card.dart';
-import 'models/lottery_result.dart';
-import 'services/api_service.dart';
-import 'theme.dart';
+import 'package:thai_lottery/screens/home_screen.dart';
+import 'package:thai_lottery/screens/history_screen.dart';
+import 'package:thai_lottery/screens/generator_screen.dart';
+import 'package:thai_lottery/screens/profile_screen.dart';
+import 'package:thai_lottery/screens/check_ticket_screen.dart';
+import 'package:thai_lottery/screens/result_screen.dart';
+import 'package:thai_lottery/screens/saved_tickets_screen.dart';
+import 'package:thai_lottery/widgets/result_card.dart';
+import 'package:thai_lottery/models/lottery_result.dart';
+import 'package:thai_lottery/services/api_service.dart';
+import 'package:thai_lottery/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

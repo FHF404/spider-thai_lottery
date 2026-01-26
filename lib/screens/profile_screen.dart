@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../widgets/result_card.dart';
+import 'package:thai_lottery/theme.dart';
+import 'package:thai_lottery/widgets/result_card.dart';
 
 class ProfileScreen extends StatelessWidget {
   final Function(String) onChangeView;

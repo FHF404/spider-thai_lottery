@@ -1,6 +1,6 @@
-import '../theme.dart';
-
-const Color kPrimaryColor = Color(0xFF5B13EC); // Still kept here for safety but should use theme.dart
+import 'package:flutter/material.dart';
+import 'package:thai_lottery/models/lottery_result.dart';
+import 'package:thai_lottery/theme.dart';
 
 class ResultCard extends StatelessWidget {
   final LotteryResult result;

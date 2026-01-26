@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/lottery_result.dart';
-import '../widgets/result_card.dart';
-import '../theme.dart';
+import 'package:thai_lottery/models/lottery_result.dart';
+import 'package:thai_lottery/widgets/result_card.dart';
+import 'package:thai_lottery/theme.dart';
+import 'package:thai_lottery/services/api_service.dart';
 
 class HomeScreen extends StatelessWidget {
   final VoidCallback onCheckTicket;
@@ -16,7 +17,7 @@ class HomeScreen extends StatelessWidget {
     required this.onCheckTicket,
     required this.onViewHistory,
     required this.onOpenGenerator,
-    required this.latestResult,
+    this.latestResult,
     required this.historyResults,
     required this.onRefresh,
   });
@@ -24,210 +25,175 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F8),
+      backgroundColor: kBackground,
       body: RefreshIndicator(
         onRefresh: onRefresh,
-        displacement: 100,
         color: kPrimaryColor,
-        child: CustomScrollView(
+        child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            _buildAppBar(),
-            SliverPadding(
-              padding: const EdgeInsets.all(16.0),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  const SizedBox(height: 8),
-                  if (latestResult != null)
-                    ResultCard(
-                      result: latestResult!,
-                      isHero: true,
-                      onCheckTicket: onCheckTicket,
-                    ),
-                  _buildSectionHeader("最近开奖历史", onViewHistory),
-                  const SizedBox(height: 16),
-                  if (historyResults.length > 1) ResultCard(result: historyResults[1]),
-                  _buildAIBanner(),
-                  const SizedBox(height: 16),
-                  ...historyResults.skip(2).take(4).map((r) => ResultCard(result: r)),
-                  const SizedBox(height: 100), // Bottom nav padding
-                ]),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      pinned: true,
-      backgroundColor: kPrimaryColor,
-      title: const Text(
-        "泰国彩票开奖",
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
-        ),
-      ),
-      centerTitle: true,
-      actions: [
-        Stack(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: Color(0xFFFFD700), size: 28),
-              onPressed: () {},
-            ),
-            Positioned(
-              right: 12,
-              top: 12,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: kPrimaryColor),
+          child: Column(
+            children: [
+              _buildHeader(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    if (latestResult != null)
+                      ResultCard(
+                        result: latestResult!,
+                        isHero: true,
+                        onCheckTicket: onCheckTicket,
+                      )
+                    else
+                      const Center(child: Padding(
+                        padding: EdgeInsets.all(40.0),
+                        child: CircularProgressIndicator(),
+                      )),
+                    
+                    if (historyResults.length > 1) 
+                      ResultCard(result: historyResults[1]),
+                    
+                    const SizedBox(height: 10),
+                    _buildSectionHeader("更多历史结果", onViewHistory),
+                    const SizedBox(height: 10),
+                    
+                    ...historyResults.skip(2).take(4).map((r) => ResultCard(result: r)),
+                    
+                    const SizedBox(height: 100), // Bottom nav space
+                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ],
-      expandedHeight: 60,
+      ),
     );
   }
 
-  Widget _buildSectionHeader(String title, VoidCallback onAction) {
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 30),
+      decoration: const BoxDecoration(
+        color: kPrimaryColor,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(40),
+          bottomRight: Radius.circular(40),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "皇家泰国彩票",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    "官方实时更新",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.notifications_none, color: Colors.white),
+              ),
+            ],
+          ),
+          const SizedBox(height: 30),
+          Row(
+            children: [
+              _buildQuickAction(
+                Icons.qr_code_scanner, 
+                "扫码查号", 
+                onCheckTicket
+              ),
+              const SizedBox(width: 15),
+              _buildQuickAction(
+                Icons.psychology, 
+                "AI 选号", 
+                onOpenGenerator
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickAction(IconData icon, String label, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: kPrimaryColor, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: kPrimaryColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, VoidCallback onTap) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
           style: const TextStyle(
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: kPrimaryDark,
+            color: Color(0xFF212121),
           ),
         ),
         TextButton(
-          onPressed: onAction,
+          onPressed: onTap,
           child: const Text(
             "查看全部",
-            style: TextStyle(
-              color: kRoyalGold,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: kPrimaryColor),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildAIBanner() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3E5F5),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.purple.shade50),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -20,
-            top: -20,
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFD700).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5),
-                  ],
-                ),
-                child: const Icon(Icons.psychology, color: kPrimaryColor, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFD700),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            "广告",
-                            style: TextStyle(
-                              color: kPrimaryDark,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          "AI 号码预测工具",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: kPrimaryDark,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      "试试我们全新的彩票模拟器",
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              ElevatedButton(
-                onPressed: onOpenGenerator,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  elevation: 4,
-                ),
-                child: const Text("打开", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

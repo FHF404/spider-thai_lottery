@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../widgets/result_card.dart';
+import 'package:thai_lottery/widgets/result_card.dart';
+import 'package:thai_lottery/models/lottery_result.dart';
+import 'package:thai_lottery/theme.dart';
 
 class SavedTicketsScreen extends StatefulWidget {
   final VoidCallback onBack;

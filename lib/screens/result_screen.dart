@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../widgets/result_card.dart';
-import '../theme.dart';
+import 'package:thai_lottery/widgets/result_card.dart';
+import 'package:thai_lottery/theme.dart';
 
 class ResultScreen extends StatelessWidget {
   final String status; // 'win' | 'loss'

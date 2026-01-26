@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/lottery_result.dart';
-import '../widgets/result_card.dart';
-import '../theme.dart';
+import 'package:thai_lottery/models/lottery_result.dart';
+import 'package:thai_lottery/widgets/result_card.dart';
+import 'package:thai_lottery/theme.dart';
 
 class HistoryScreen extends StatelessWidget {
   final VoidCallback onBack;
