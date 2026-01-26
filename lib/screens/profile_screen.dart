@@ -1,11 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:thai_lottery/theme.dart';
-import 'package:thai_lottery/widgets/result_card.dart';
+import 'package:thai_lottery/services/storage_service.dart';
+import 'package:thai_lottery/models/saved_ticket.dart';
+import 'package:thai_lottery/models/lottery_result.dart';
+import 'package:thai_lottery/services/api_service.dart';
+import 'package:intl/intl.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   final Function(String) onChangeView;
 
   const ProfileScreen({super.key, required this.onChangeView});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final TextEditingController _numberController = TextEditingController();
+  List<SavedTicket> _tickets = [];
+  LotteryResult? _latestResult;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _numberController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    final tickets = await StorageService.getTickets();
+    final results = await ApiService.fetchLotteryData();
+    
+    setState(() {
+      _tickets = tickets;
+      _latestResult = results['latest'];
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _handleManualAdd() async {
+    final number = _numberController.text;
+    if (number.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("请输入6位完整的号码"), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    final ticket = SavedTicket(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      number: number,
+      addDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+    );
+
+    await StorageService.saveTicket(ticket);
+    _numberController.clear();
+    FocusScope.of(context).unfocus();
+    
+    // 重新加载数据
+    await _loadData();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ 彩票已成功添加到钱包"), backgroundColor: Colors.green),
+      );
+    }
+  }
+
+  // 简单的中奖检查（复用 SavedTicketsScreen 的逻辑思路）
+  bool _isTicketWon(SavedTicket ticket) {
+    if (_latestResult == null) return false;
+    final number = ticket.number;
+    return number == _latestResult!.number || 
+           number.endsWith(_latestResult!.bottom2) ||
+           _latestResult!.top3.split(', ').any((v) => number.substring(0, 3) == v.replaceAll(' ', '')) ||
+           _latestResult!.bottom3.split(', ').any((v) => number.substring(3) == v.replaceAll(' ', ''));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,35 +102,40 @@ class ProfileScreen extends StatelessWidget {
             onPressed: () {},
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey.shade50, height: 1),
-        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildOverviewCard(),
-            const SizedBox(height: 24),
-            _buildQuickAdd(),
-            const SizedBox(height: 24),
-            const Text(
-              "幸运生成器",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kPrimaryColor),
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : RefreshIndicator(
+            onRefresh: _loadData,
+            color: kPrimaryColor,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildOverviewCard(),
+                  const SizedBox(height: 24),
+                  _buildQuickAdd(),
+                  const SizedBox(height: 24),
+                  const Text(
+                    "幸运生成器",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kPrimaryColor),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGeneratorShortcuts(),
+                  const SizedBox(height: 24),
+                  _buildRecentTicketsHeader(),
+                  const SizedBox(height: 12),
+                  if (_tickets.isEmpty)
+                    _buildEmptyTicketsHint()
+                  else
+                    ..._tickets.take(3).map((t) => _buildRecentTicketItem(t)),
+                  const SizedBox(height: 100),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            _buildGeneratorShortcuts(),
-            const SizedBox(height: 24),
-            _buildRecentTicketsHeader(),
-            const SizedBox(height: 12),
-            _buildRecentTicketItem("2023年10月16日", "823491", true),
-            _buildRecentTicketItem("2023年11月01日", "004812", false),
-            const SizedBox(height: 100),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -103,12 +185,12 @@ class ProfileScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      "12 张有效彩票",
-                      style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500),
+                    Text(
+                      "${_tickets.length} 张已有彩票",
+                      style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                     ElevatedButton(
-                    onPressed: () => onChangeView('saved_tickets'),
+                      onPressed: () => widget.onChangeView('saved_tickets'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kRoyalGold,
                         foregroundColor: kPrimaryDark,
@@ -123,6 +205,25 @@ class ProfileScreen extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyTicketsHint() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.style_outlined, size: 40, color: Colors.grey.shade200),
+          const SizedBox(height: 12),
+          Text("还没有彩票记录，快去添加吧", style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
         ],
       ),
     );
@@ -152,38 +253,44 @@ class ProfileScreen extends StatelessWidget {
                 "手动输入6位数字",
                 style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               TextField(
+                controller: _numberController,
                 textAlign: TextAlign.center,
                 maxLength: 6,
+                keyboardType: TextInputType.number,
                 style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 10,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 12,
                   color: kPrimaryColor,
                 ),
                 decoration: InputDecoration(
-                  hintText: "000000",
+                  hintText: "******",
+                  hintStyle: TextStyle(color: Colors.grey.shade200),
                   counterText: "",
                   filled: true,
                   fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kPrimaryColor, width: 2)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade100)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kPrimaryColor, width: 2)),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 56,
                 child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.add_circle, size: 20),
-                  label: const Text("添加到钱包"),
+                  onPressed: _handleManualAdd,
+                  icon: const Icon(Icons.add_task_rounded, size: 20),
+                  label: const Text("添加到彩票记录", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryColor,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 8,
+                    shadowColor: kPrimaryColor.withOpacity(0.3),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                 ),
               ),
@@ -205,7 +312,7 @@ class ProfileScreen extends StatelessWidget {
       children: items.map((item) {
         return Expanded(
           child: GestureDetector(
-            onTap: () => onChangeView('generator'),
+            onTap: () => widget.onChangeView('generator'),
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 4),
               padding: const EdgeInsets.all(12),
@@ -254,7 +361,7 @@ class ProfileScreen extends StatelessWidget {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kPrimaryColor),
         ),
         GestureDetector(
-          onTap: () => onChangeView('history'),
+          onTap: () => widget.onChangeView('saved_tickets'),
           child: const Text(
             "查看全部",
             style: TextStyle(
@@ -269,15 +376,16 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentTicketItem(String date, String number, bool isWin) {
+  Widget _buildRecentTicketItem(SavedTicket ticket) {
+    final isWin = _isTicketWon(ticket);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border(left: BorderSide(color: isWin ? kRoyalGold : Colors.grey.shade300, width: 4)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5)],
+        border: Border(left: BorderSide(color: isWin ? kRoyalGold : Colors.grey.shade200, width: 4)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 4))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -285,14 +393,14 @@ class ProfileScreen extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("开奖日期: $date", style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+              Text("添加日期: ${ticket.addDate}", style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Text(
-                number,
+                ticket.number,
                 style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isWin ? kPrimaryColor : Colors.grey.shade600,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: isWin ? kPrimaryColor : kPrimaryDark,
                   letterSpacing: 2,
                 ),
               ),
@@ -306,11 +414,11 @@ class ProfileScreen extends StatelessWidget {
 
   Widget _buildStatusTag(bool isWin) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isWin ? const Color(0xFFFFFDE7) : const Color(0xFFF5F5F5),
+        color: isWin ? kRoyalGold.withOpacity(0.12) : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isWin ? const Color(0xFFFFF9C4) : Colors.transparent),
+        border: Border.all(color: isWin ? kRoyalGold.withOpacity(0.3) : Colors.transparent),
       ),
       child: Row(
         children: [
@@ -321,7 +429,7 @@ class ProfileScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
-              color: isWin ? Colors.brown : Colors.grey,
+              color: isWin ? kRoyalGold : Colors.grey,
             ),
           ),
         ],
