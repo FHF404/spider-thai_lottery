@@ -1,0 +1,36 @@
+name: Update Thai Lottery Results
+
+on:
+  schedule:
+    # 1. 正常频率：1号和16号的中午 12:00 UTC (19:00 泰国时间)
+    - cron: '0 12 1,16 * *'
+    # 2. 开奖区间高频：1号和16号的 07:00 - 10:00 UTC (14:00 - 17:00 泰国时间)，每 15 分钟运行一次
+    - cron: '*/15 7-9 1,16 * *'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  update-lotto:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4
+
+      - name: Run scraper
+        run: python scraper.py
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add lotto_results.json
+          git commit -m "Update lottery results: $(date +'%Y-%m-%d')" || exit 0
+          git push
