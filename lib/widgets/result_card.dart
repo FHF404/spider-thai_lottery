@@ -207,25 +207,22 @@ class ResultCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Expanded(
-                            flex: 5,
+                            flex: 6,
                             child: _buildHistoryMainItem("一等奖", result.number, kRoyalGold),
                           ),
-                          Container(width: 1, height: 30, color: Colors.grey.shade100),
-                          const SizedBox(width: 15),
+                          _buildSmallDivider(),
                           Expanded(
                             flex: 3,
                             child: _buildHistoryMainItem("后2位", result.bottom2, kPrimaryColor),
                           ),
-                          Container(width: 1, height: 30, color: Colors.grey.shade100),
-                          const SizedBox(width: 15),
+                          _buildSmallDivider(),
                           Expanded(
-                            flex: 4,
+                            flex: 5,
                             child: _buildHistorySubItem("前3位", result.top3),
                           ),
-                          Container(width: 1, height: 30, color: Colors.grey.shade100),
-                          const SizedBox(width: 15),
+                          _buildSmallDivider(),
                           Expanded(
-                            flex: 4,
+                            flex: 5,
                             child: _buildHistorySubItem("后3位", result.bottom3),
                           ),
                         ],
@@ -238,6 +235,15 @@ class ResultCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSmallDivider() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      width: 1,
+      height: 24,
+      color: Colors.grey.shade100,
     );
   }
 
@@ -255,12 +261,15 @@ class ResultCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: isHighlight ? 26 : 18,
-              fontWeight: FontWeight.w900,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: isHighlight ? 26 : 18,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
@@ -281,13 +290,17 @@ class ResultCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.5,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: TextStyle(
+              color: color,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
           ),
         ),
       ],
@@ -307,12 +320,16 @@ class ResultCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          value,
-          style: const TextStyle(
-            color: kPrimaryDark,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: const TextStyle(
+              color: kPrimaryDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ],
