@@ -212,16 +212,22 @@ class _MainScreenState extends State<MainScreen> {
             if (isActive)
               Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                width: 6,
-                height: 6,
+                width: 24,
+                height: 3,
                 decoration: BoxDecoration(
-                  color: kRoyalGold,
-                  shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: kRoyalGold.withOpacity(0.6), blurRadius: 8)],
+                  color: kPrimaryColor,
+                  borderRadius: BorderRadius.circular(1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kPrimaryColor.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    )
+                  ],
                 ),
               )
             else
-              const SizedBox(height: 14),
+              const SizedBox(height: 11),
             Icon(
               icon,
               size: 28,
