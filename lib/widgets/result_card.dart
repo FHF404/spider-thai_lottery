@@ -19,262 +19,249 @@ class ResultCard extends StatelessWidget {
     if (isHero) {
       return Container(
         margin: const EdgeInsets.only(bottom: 24),
-        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: const Color(0xFFFFD700), width: 2),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white,
+              Colors.grey.shade50,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(32),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
+              color: kPrimaryColor.withOpacity(0.08),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
-        child: Column(
-          children: [
-            const Text(
-              "最新开奖结果",
-              style: TextStyle(
-                color: kPrimaryColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              "一等奖",
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              result.number,
-              style: const TextStyle(
-                fontSize: 56,
-                fontWeight: FontWeight.bold,
-                color: kPrimaryColor,
-                letterSpacing: 4,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(
-                  result.drawDateFull,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                border: Border.symmetric(
-                  horizontal: BorderSide(color: Colors.grey.shade100),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -20,
+                top: -20,
+                child: Icon(
+                  Icons.stars,
+                  size: 150,
+                  color: kRoyalGold.withOpacity(0.05),
                 ),
               ),
-              child: Row(
-                children: [
-                  _buildGridItem("前三位", result.top3, kRoyalGold),
-                  _buildDivider(),
-                  _buildGridItem("后三位", result.bottom3, kRoyalGold),
-                  _buildDivider(),
-                  _buildGridItem("后两位", result.bottom2, kPrimaryColor, isLarge: true),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: onCheckTicket,
-                icon: const Icon(Icons.qr_code_scanner, color: Color(0xFFFFD700)),
-                label: const Text(
-                  "检查我的彩票",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: kRoyalGold.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            "🏆 最新开奖结果",
+                            style: TextStyle(
+                              color: kRoyalGold,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "一等奖",
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                        letterSpacing: 2,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      result.number,
+                      style: const TextStyle(
+                        fontSize: 64,
+                        fontWeight: FontWeight.w900,
+                        color: kPrimaryColor,
+                        letterSpacing: 6,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.event_note, size: 16, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Text(
+                          result.drawDateFull,
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          _buildHeroGridItem("前三位", result.top3, kPrimaryDark),
+                          Container(width: 1, height: 40, color: Colors.grey.shade100),
+                          _buildHeroGridItem("后三位", result.bottom3, kPrimaryDark),
+                          Container(width: 1, height: 40, color: Colors.grey.shade100),
+                          _buildHeroGridItem("后两位", result.bottom2, kPrimaryColor, isHighlight: true),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: onCheckTicket,
+                        icon: const Icon(Icons.scanner_rounded, size: 20),
+                        label: const Text(
+                          "立即核对我的彩票",
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 10,
+                          shadowColor: kPrimaryColor.withOpacity(0.4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimaryColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 8,
-                  shadowColor: kPrimaryColor.withOpacity(0.3),
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF9C4),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Icons.emoji_events, color: Color(0xFFFBC02D)),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  result.date,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF212121),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEDE7F6),
-                        borderRadius: BorderRadius.circular(4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Container(
+                width: 6,
+                color: kPrimaryColor.withOpacity(0.8),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            result.date,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: kPrimaryDark,
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                        ],
                       ),
-                      child: const Text(
-                        "一等奖",
-                        style: TextStyle(
-                          color: kPrimaryColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          _buildHistoryMainItem("一等奖", result.number, kRoyalGold),
+                          const SizedBox(width: 24),
+                          _buildHistoryMainItem("后2位", result.bottom2, kPrimaryColor),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: kBackground,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildHistorySubItem("前3位", result.top3),
+                            const Spacer(),
+                            _buildHistorySubItem("后3位", result.bottom3),
+                            const Spacer(),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      result.number,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFF9A825),
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(width: 1, height: 12, color: Colors.grey.shade200),
-                    const SizedBox(width: 8),
-                    const Text(
-                      "2位",
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      result.bottom2,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: kPrimaryColor,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                Divider(height: 1, color: Colors.grey.shade50),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "前3位",
-                            style: TextStyle(color: Colors.grey, fontSize: 10),
-                          ),
-                          Text(
-                            result.top3,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF424242),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "后3位",
-                            style: TextStyle(color: Colors.grey, fontSize: 10),
-                          ),
-                          Text(
-                            result.bottom3,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF424242),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildGridItem(String label, String value, Color valueColor, {bool isLarge = false}) {
+  Widget _buildHeroGridItem(String label, String value, Color color, {bool isHighlight = false}) {
     return Expanded(
       child: Column(
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: kRoyalGold,
-              fontSize: 12,
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
-              color: valueColor,
-              fontSize: isLarge ? 24 : 18,
-              fontWeight: FontWeight.bold,
+              color: color,
+              fontSize: isHighlight ? 26 : 18,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -282,7 +269,54 @@ class ResultCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDivider() {
-    return Container(width: 1, height: 30, color: Colors.grey.shade100);
+  Widget _buildHistoryMainItem(String label, String value, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey.shade500,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHistorySubItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.grey,
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(
+            color: kPrimaryDark,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
   }
 }
