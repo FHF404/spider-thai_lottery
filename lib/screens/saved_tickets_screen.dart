@@ -32,25 +32,26 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
     final results = await ApiService.fetchLotteryData();
     final tickets = await StorageService.getTickets();
     
+    final history = results['history'] as List<LotteryResult>;
+    // 使用历史第2条进行 UI 测试对比，如果需要真实数据改为 latest
+    final currentComparingResult = history.length > 1 ? history[1] : results['latest'];
+
+    // 关键修正：对待开奖的进行结算并持久化存储
+    bool hasChanged = LotteryUtils.finalizePendingTickets(tickets, currentComparingResult);
+    if (hasChanged) {
+      await StorageService.saveAllTickets(tickets);
+    }
+    
     setState(() {
-      final history = results['history'] as List<LotteryResult>;
-      // 使用历史第2条进行 UI 测试对比，如果需要真实数据改为 latest
-      _latestResult = history.length > 1 ? history[1] : results['latest'];
+      _latestResult = currentComparingResult;
       _tickets = tickets;
       _isLoading = false;
     });
   }
 
-  Map<String, dynamic> _checkWinStatus(SavedTicket ticket) {
-    return LotteryUtils.checkWinStatus(ticket, _latestResult);
-  }
-
   List<SavedTicket> get _filteredTickets {
     if (_activeTab == 'all') return _tickets;
-    return _tickets.where((t) {
-      final winInfo = _checkWinStatus(t);
-      return winInfo['status'] == _activeTab;
-    }).toList();
+    return _tickets.where((t) => t.status == _activeTab).toList();
   }
 
   @override
@@ -85,8 +86,7 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
                         itemCount: _filteredTickets.length,
                         itemBuilder: (context, index) {
                           final ticket = _filteredTickets[index];
-                          final winInfo = _checkWinStatus(ticket);
-                          return _buildTicketCard(ticket, winInfo);
+                          return _buildTicketCard(ticket);
                         },
                       ),
                     ),
@@ -139,11 +139,11 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
     );
   }
 
-  Widget _buildTicketCard(SavedTicket ticket, Map<String, dynamic> winInfo) {
-    final isWon = winInfo['status'] == 'won';
-    final isLost = winInfo['status'] == 'lost';
-    final isPending = winInfo['status'] == 'pending';
-    final List<int> winIndices = winInfo['indices'] ?? [];
+  Widget _buildTicketCard(SavedTicket ticket) {
+    final isWon = ticket.status == 'won';
+    final isLost = ticket.status == 'lost';
+    final isPending = ticket.status == 'pending';
+    final List<int> winIndices = ticket.winIndices ?? [];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -189,7 +189,7 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        isPending ? "下期开奖: 2023-11-01" : "开奖日期: ${_latestResult?.date ?? ticket.addDate}",
+                        isPending ? "下期开奖: 2023-11-01" : "开奖日期: ${ticket.drawDate ?? '等待对比'}",
                         style: TextStyle(color: Colors.grey.shade400, fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                       if (isWon)
@@ -218,17 +218,17 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        isWon ? winInfo['label'] : (isPending ? "待开奖" : "未中奖"),
+                        isWon ? (ticket.winLabel ?? "已中奖") : (isPending ? "待开奖" : "未中奖"),
                         style: TextStyle(
                           color: isWon ? kRoyalGold : (isPending ? kPrimaryDark : Colors.grey),
                           fontSize: 22,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      if (isWon) ...[
+                      if (isWon && ticket.winAmount != null) ...[
                         const SizedBox(width: 8),
                         Text(
-                          "(${winInfo['amount']})",
+                          "(${ticket.winAmount})",
                           style: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w500),
                         ),
                       ] else if (isPending) ...[

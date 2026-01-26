@@ -64,4 +64,27 @@ class LotteryUtils {
 
     return {'status': 'lost', 'label': '未中奖'};
   }
+
+  static bool finalizePendingTickets(List<SavedTicket> tickets, LotteryResult? latestResult) {
+    if (latestResult == null) return false;
+    bool hasChanged = false;
+
+    for (var ticket in tickets) {
+      if (ticket.status == 'pending') {
+        // 泰国日期转换比较复杂，这里采用简单逻辑：
+        // 如果该期由于是“最新”而被用户看到并比对过，我们就锁定它
+        final status = checkWinStatus(ticket, latestResult);
+        
+        if (status['status'] != 'pending') {
+          ticket.status = status['status'];
+          ticket.winLabel = status['label'];
+          ticket.winAmount = status['amount'];
+          ticket.winIndices = status['indices'];
+          ticket.drawDate = latestResult.date;
+          hasChanged = true;
+        }
+      }
+    }
+    return hasChanged;
+  }
 }

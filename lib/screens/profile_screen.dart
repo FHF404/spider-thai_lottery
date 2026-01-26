@@ -39,10 +39,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final tickets = await StorageService.getTickets();
     final results = await ApiService.fetchLotteryData();
     
+    final history = results['history'] as List<LotteryResult>;
+    final currentComparingResult = history.length > 1 ? history[1] : results['latest'];
+
+    // 关键修正：结算并持久化
+    bool hasChanged = LotteryUtils.finalizePendingTickets(tickets, currentComparingResult);
+    if (hasChanged) {
+      await StorageService.saveAllTickets(tickets);
+    }
+
     setState(() {
       _tickets = tickets;
-      final history = results['history'] as List<LotteryResult>;
-      _latestResult = history.length > 1 ? history[1] : results['latest'];
+      _latestResult = currentComparingResult;
       _isLoading = false;
     });
   }
@@ -76,11 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 简单的中奖检查（复用 SavedTicketsScreen 的逻辑思路）
-  bool _isTicketWon(SavedTicket ticket) {
-    final winStatus = LotteryUtils.checkWinStatus(ticket, _latestResult);
-    return winStatus['status'] == 'won';
-  }
+  // 数据加载已完成结算
 
   @override
   Widget build(BuildContext context) {
@@ -375,7 +379,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildRecentTicketItem(SavedTicket ticket) {
-    final isWin = _isTicketWon(ticket);
+    final isWin = ticket.status == 'won';
+    final isPending = ticket.status == 'pending';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -404,13 +409,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-          _buildStatusTag(isWin),
+          _buildStatusTag(isWin, isPending),
         ],
       ),
     );
   }
 
-  Widget _buildStatusTag(bool isWin) {
+  Widget _buildStatusTag(bool isWin, bool isPending) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -423,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Icon(isWin ? Icons.emoji_events : Icons.schedule, size: 14, color: isWin ? kRoyalGold : Colors.grey),
           const SizedBox(width: 4),
           Text(
-            isWin ? "已中奖" : "待开奖",
+            isWin ? "已中奖" : (isPending ? "待开奖" : "未中奖"),
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
