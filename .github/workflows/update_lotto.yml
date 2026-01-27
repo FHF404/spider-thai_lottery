@@ -70,33 +70,59 @@ jobs:
           token = creds.token
           project_id = json.load(open('service_account.json'))['project_id']
 
-          # 2. 构建 V1 消息
+          # 2. 构建 V1 消息并循环发送
           url = f'https://fcm.googleapis.com/v1/projects/{project_id}/messages:send'
           headers = {
               'Authorization': f'Bearer {token}',
               'Content-Type': 'application/json'
           }
           
-          body = {
-              "message": {
-                  "topic": "lottery_updates",
-                  "notification": {
-                      "title": "🎉 泰国彩票开奖结果已更新！",
-                      "body": "最新一期数据已上线，快来核对您的好运吧！🔔"
-                  },
-                  "android": {
+          # 定义三语推送内容
+          notifications = [
+              {
+                  "topic": "lottery_updates_zh",
+                  "title": "🎉 泰国彩票开奖结果已更新！",
+                  "body": "最新一期数据已上线，快来核对您的好运吧！🔔"
+              },
+              {
+                  "topic": "lottery_updates_th",
+                  "title": "🎉 ผลสลากกินแบ่งรัฐบาลออกแล้ว!",
+                  "body": "อัปเดตข้อมูลล่าสุดแล้ว ตรวจหวยของคุณได้เลยที่นี่! 🔔"
+              },
+              {
+                  "topic": "lottery_updates_en",
+                  "title": "🎉 Thai Lottery Results Updated!",
+                  "body": "New draw data is live. Check your lucky numbers now! 🔔"
+              }
+          ]
+
+          # 3. 循环发送
+          for item in notifications:
+              body = {
+                  "message": {
+                      "topic": item["topic"],
                       "notification": {
-                          "click_action": "FLUTTER_NOTIFICATION_CLICK",
-                          "sound": "default"
+                          "title": item["title"],
+                          "body": item["body"]
+                      },
+                      "android": {
+                          "notification": {
+                              "click_action": "FLUTTER_NOTIFICATION_CLICK",
+                              "sound": "default"
+                          }
                       }
                   }
               }
-          }
 
-          # 3. 发送请求
-          response = requests.post(url, headers=headers, json=body)
-          print(f'Status: {response.status_code}')
-          print(f'Response: {response.text}')
+              try:
+                  response = requests.post(url, headers=headers, json=body)
+                  print(f'Sent to {item["topic"]}: {response.status_code}')
+                  if response.status_code != 200:
+                      print(f'Error: {response.text}')
+              except Exception as e:
+                  print(f'Exception sending to {item["topic"]}: {e}')
+                  
+          print("Notification process completed.")
           EOF
           
           rm service_account.json
