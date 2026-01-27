@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:thai_lottery/models/lottery_result.dart';
+import 'package:thai_lottery/widgets/standard_app_bar.dart';
 import 'package:thai_lottery/widgets/result_card.dart';
 import 'package:thai_lottery/theme.dart';
 
@@ -72,18 +73,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F8),
-      appBar: AppBar(
-        backgroundColor: kPrimaryColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: widget.onBack,
-        ),
-        title: const Text(
-          "历史开奖记录",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+      appBar: const StandardAppBar(
+        title: "历史开奖记录",
+        showBackButton: false,
       ),
       body: Column(
         children: [

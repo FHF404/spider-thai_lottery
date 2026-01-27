@@ -126,11 +126,11 @@ class ResultCard extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          _buildHeroGridItem("前三位", result.top3, kPrimaryDark),
+                          _buildHeroGridItem("前三位", result.top3, Colors.black87),
                           Container(width: 1, height: 40, color: Colors.grey.shade100),
-                          _buildHeroGridItem("后三位", result.bottom3, kPrimaryDark),
+                          _buildHeroGridItem("后三位", result.bottom3, Colors.black87),
                           Container(width: 1, height: 40, color: Colors.grey.shade100),
-                          _buildHeroGridItem("后两位", result.bottom2, kPrimaryColor, isHighlight: true),
+                          _buildHeroGridItem("后两位", result.bottom2, kRoyalGold, isHighlight: true),
                         ],
                       ),
                     ),
@@ -142,7 +142,7 @@ class ResultCard extends StatelessWidget {
                         onPressed: onCheckTicket,
                         icon: const Icon(Icons.scanner_rounded, size: 20),
                         label: const Text(
-                          "立即核对我的彩票",
+                          "核对我的彩票",
                           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                         ),
                         style: ElevatedButton.styleFrom(
@@ -212,11 +212,6 @@ class ResultCard extends StatelessWidget {
                           ),
                           _buildSmallDivider(),
                           Expanded(
-                            flex: 3,
-                            child: _buildHistoryMainItem("后2位", result.bottom2, kPrimaryColor),
-                          ),
-                          _buildSmallDivider(),
-                          Expanded(
                             flex: 5,
                             child: _buildHistorySubItem("前3位", result.top3),
                           ),
@@ -224,6 +219,11 @@ class ResultCard extends StatelessWidget {
                           Expanded(
                             flex: 5,
                             child: _buildHistorySubItem("后3位", result.bottom3),
+                          ),
+                          _buildSmallDivider(),
+                          Expanded(
+                            flex: 3,
+                            child: _buildHistoryMainItem("后2位", result.bottom2, kPrimaryColor),
                           ),
                         ],
                       ),

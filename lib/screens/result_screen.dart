@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:thai_lottery/widgets/standard_app_bar.dart';
 import 'package:thai_lottery/theme.dart';
 import 'package:thai_lottery/models/lottery_result.dart';
+import 'package:thai_lottery/utils/lottery_utils.dart';
 
 class ResultScreen extends StatelessWidget {
   final Map<String, dynamic> winStatus;
   final String ticketNumber;
   final LotteryResult? latestResult;
   final VoidCallback onBack;
+  final VoidCallback onHome;
 
   const ResultScreen({
     super.key,
@@ -14,6 +17,7 @@ class ResultScreen extends StatelessWidget {
     required this.ticketNumber,
     this.latestResult,
     required this.onBack,
+    required this.onHome,
   });
 
   @override
@@ -23,18 +27,10 @@ class ResultScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F8),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: kPrimaryColor),
-          onPressed: onBack,
-        ),
-        title: Text(
-          isWin ? "核对结果：恭喜中奖！" : "核对结果",
-          style: const TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+      appBar: StandardAppBar(
+        title: isWin ? "核对结果：恭喜中奖！" : "核对结果",
+        showBackButton: true,
+        onBack: onBack,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -54,6 +50,7 @@ class ResultScreen extends StatelessWidget {
   }
 
   Widget _buildStatusHeader(bool isWin) {
+    final bool isPending = winStatus['status'] == 'pending';
     return Column(
       children: [
         Container(
@@ -66,14 +63,14 @@ class ResultScreen extends StatelessWidget {
             boxShadow: isWin ? [BoxShadow(color: kRoyalGold.withOpacity(0.2), blurRadius: 20)] : null,
           ),
           child: Icon(
-            isWin ? Icons.emoji_events : Icons.sentiment_dissatisfied,
+            isWin ? Icons.emoji_events : (isPending ? Icons.more_horiz : Icons.sentiment_dissatisfied),
             size: 50,
             color: isWin ? kRoyalGold : Colors.grey,
           ),
         ),
         const SizedBox(height: 24),
         Text(
-          isWin ? "🎉 幸运降临！" : "很抱歉，未中奖",
+          isWin ? "🎉 恭喜中奖！" : (isPending ? "待开奖" : "很遗憾，未中奖"),
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w900,
@@ -82,7 +79,7 @@ class ResultScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          "开奖日期：${latestResult?.date ?? '未知'}",
+          isPending ? "下期开奖: ${LotteryUtils.getNextDrawDate()}" : "开奖日期：${latestResult?.date ?? '未知'}",
           style: TextStyle(color: Colors.grey.shade500, fontSize: 13, fontWeight: FontWeight.bold),
         ),
       ],
@@ -196,7 +193,7 @@ class ResultScreen extends StatelessWidget {
           const SizedBox(width: 16),
           Expanded(
             child: Text(
-              "该号码与本期官方开奖结果未匹配。每一份坚持都是好运的开始！",
+              "该号码与本期官方开奖结果未匹配。",
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13, height: 1.5),
             ),
           ),
@@ -225,7 +222,7 @@ class ResultScreen extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         TextButton(
-          onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+          onPressed: onHome,
           child: Text(
             "返回主页",
             style: TextStyle(color: Colors.grey.shade400, fontSize: 15, fontWeight: FontWeight.bold),

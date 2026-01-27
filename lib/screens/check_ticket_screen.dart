@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thai_lottery/widgets/standard_app_bar.dart';
 import 'package:thai_lottery/widgets/result_card.dart';
 import 'package:thai_lottery/theme.dart';
 
@@ -35,18 +36,10 @@ class _CheckTicketScreenState extends State<CheckTicketScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: kPrimaryColor, size: 24),
-          onPressed: widget.onBack,
-        ),
-        title: const Text(
-          "检查我的彩票",
-          style: TextStyle(color: Color(0xFF212121), fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+      appBar: StandardAppBar(
+        title: "核对我的彩票",
+        showBackButton: true,
+        onBack: widget.onBack,
       ),
       body: Column(
         children: [

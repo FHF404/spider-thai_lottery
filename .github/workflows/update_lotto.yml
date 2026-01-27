@@ -24,15 +24,79 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests beautifulsoup4
+          pip install requests beautifulsoup4 google-auth google-auth-oauthlib google-auth-httplib2
 
       - name: Run scraper
         run: python scraper.py
 
       - name: Commit and push changes
+        id: commit_step
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add lotto_results.json
-          git commit -m "Update lottery results: $(date +'%Y-%m-%d')" || exit 0
-          git push
+          if git commit -m "Update lottery results: $(date +'%Y-%m-%d')"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            git push
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send FCM Notification
+        if: steps.commit_step.outputs.changed == 'true'
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "FIREBASE_SERVICE_ACCOUNT is not set. Skipping."
+            exit 0
+          fi
+          
+          # 创建临时 JSON 文件
+          echo "$SERVICE_ACCOUNT" > service_account.json
+          
+          # 使用 Python 处理 V1 推送（自动处理 OAuth2）
+          python - <<EOF
+          import json
+          import time
+          import requests
+          from google.oauth2 import service_account
+          from google.auth.transport.requests import Request
+
+          # 1. 载入服务账号
+          scopes = ['https://www.googleapis.com/auth/firebase.messaging']
+          creds = service_account.Credentials.from_service_account_file('service_account.json', scopes=scopes)
+          creds.refresh(Request())
+          token = creds.token
+          project_id = json.load(open('service_account.json'))['project_id']
+
+          # 2. 构建 V1 消息
+          url = f'https://fcm.googleapis.com/v1/projects/{project_id}/messages:send'
+          headers = {
+              'Authorization': f'Bearer {token}',
+              'Content-Type': 'application/json'
+          }
+          
+          body = {
+              "message": {
+                  "topic": "lottery_updates",
+                  "notification": {
+                      "title": "🎉 泰国彩票开奖结果已更新！",
+                      "body": "最新一期数据已上线，快来核对您的好运吧！🔔"
+                  },
+                  "android": {
+                      "notification": {
+                          "click_action": "FLUTTER_NOTIFICATION_CLICK",
+                          "sound": "default"
+                      }
+                  }
+              }
+          }
+
+          # 3. 发送请求
+          response = requests.post(url, headers=headers, json=body)
+          print(f'Status: {response.status_code}')
+          print(f'Response: {response.text}')
+          EOF
+          
+          rm service_account.json

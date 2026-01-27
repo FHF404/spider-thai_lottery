@@ -1,17 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:thai_lottery/widgets/standard_app_bar.dart';
 import 'package:thai_lottery/theme.dart';
+import 'package:thai_lottery/services/storage_service.dart';
+import 'package:thai_lottery/models/saved_ticket.dart';
+import 'package:intl/intl.dart';
 import 'dart:async';
 import 'dart:math';
 
 class GeneratorScreen extends StatefulWidget {
-  const GeneratorScreen({super.key});
+  final VoidCallback? onViewWallet;
+  final String? initialMode;
+
+  const GeneratorScreen({
+    super.key, 
+    this.onViewWallet,
+    this.initialMode,
+  });
 
   @override
   State<GeneratorScreen> createState() => _GeneratorScreenState();
 }
 
 class _GeneratorScreenState extends State<GeneratorScreen> {
-  String _mode = 'birthday'; // 'phone' | 'birthday' | 'random'
+  late String _mode; // 'birthday' | 'phone' | 'random'
+  
+  @override
+  void initState() {
+    super.initState();
+    _mode = widget.initialMode ?? 'birthday';
+  }
   
   // Birthday state (B.E.)
   int _selectedYearBE = DateTime.now().year + 543;
@@ -23,6 +41,7 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
   
   // Animation state
   bool _isCalculating = false;
+  bool _isSaved = false;
   List<String> _displayNumbers = List.filled(6, "-");
   List<int> _finalNumbers = [];
   Timer? _animTimer;
@@ -38,6 +57,16 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
   void _startCalculation() {
     if (_isCalculating) return;
 
+    if (_mode == 'phone' && _phoneController.text.replaceAll(RegExp(r'\D'), '').length < 9) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("📱 请先输入有效的手机号码"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     // Generate deterministic final numbers based on input
     _finalNumbers = _mode == 'birthday' 
         ? _generateFromBirthday() 
@@ -45,6 +74,7 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
 
     setState(() {
       _isCalculating = true;
+      _isSaved = false;
       _displayNumbers = List.filled(6, "0");
       for (int i = 0; i < 6; i++) _lockedStates[i] = false;
     });
@@ -87,6 +117,40 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
     });
   }
 
+  Future<void> _handleSave() async {
+    if (_isSaved || _isCalculating || _displayNumbers.contains("-")) return;
+
+    final ticket = SavedTicket(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      number: _finalNumbers.join(''),
+      addDate: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      type: _mode,
+    );
+
+    await StorageService.saveTicket(ticket);
+    
+    setState(() {
+      _isSaved = true;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("✅ 彩票已保存到您的包中"),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          action: widget.onViewWallet != null 
+            ? SnackBarAction(
+                label: "去查看", 
+                textColor: Colors.white, 
+                onPressed: widget.onViewWallet!,
+              )
+            : null,
+        ),
+      );
+    }
+  }
+
   List<int> _generateFromBirthday() {
     // Seed random with date
     final seed = _selectedYearBE * 10000 + _selectedMonth * 100 + _selectedDay;
@@ -95,8 +159,16 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
   }
 
   List<int> _generateFromPhone() {
-    final phoneStr = _phoneController.text;
-    final seed = int.tryParse(phoneStr.replaceAll(RegExp(r'\D'), '')) ?? 0;
+    final phoneStr = _phoneController.text.replaceAll(RegExp(r'\D'), '');
+    if (phoneStr.isEmpty) return List.generate(6, (index) => Random().nextInt(10));
+    
+    // 算法：将手机号每一位相加作为初始种子，再结合号码本身进行混淆
+    int digitSum = 0;
+    for (int i = 0; i < phoneStr.length; i++) {
+      digitSum += int.parse(phoneStr[i]);
+    }
+    
+    final seed = digitSum * 1234567 + int.parse(phoneStr.substring(max(0, phoneStr.length - 4)));
     final rand = Random(seed);
     return List.generate(6, (_) => rand.nextInt(10));
   }
@@ -110,22 +182,9 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F8),
-      appBar: AppBar(
-        backgroundColor: kPrimaryColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-          onPressed: () {
-            // Navigator is handled in parent switch usually, 
-            // but for safety in standalone test:
-            if (Navigator.canPop(context)) Navigator.pop(context);
-          },
-        ),
-        title: const Text(
-          "幸运号码生成器",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+      appBar: const StandardAppBar(
+        title: "幸运号码生成器",
+        showBackButton: false,
       ),
       body: Column(
         children: [
@@ -180,6 +239,7 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
           _mode = mode;
           _displayNumbers = List.filled(6, "-");
           _isCalculating = false;
+          _isSaved = false;
           _animTimer?.cancel();
         }),
         child: Container(
@@ -310,7 +370,11 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
         const SizedBox(height: 32),
         TextField(
           controller: _phoneController,
-          keyboardType: TextInputType.phone,
+          keyboardType: const TextInputType.numberWithOptions(signed: false, decimal: false),
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(11),
+          ],
           onChanged: (_) => setState(() => _displayNumbers = List.filled(6, "-")),
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kPrimaryDark),
           decoration: InputDecoration(
@@ -338,19 +402,44 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
   }
 
   Widget _buildMagicButton(String label, IconData icon) {
-    return SizedBox(
+    bool isDisabled = _mode == 'phone' && _phoneController.text.trim().isEmpty;
+    
+    return Container(
       width: double.infinity,
-      height: 56,
+      height: 58,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: isDisabled 
+            ? [Colors.grey.shade300, Colors.grey.shade400] 
+            : [kPrimaryColor, kPrimaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: isDisabled ? null : [
+          BoxShadow(
+            color: kPrimaryColor.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          )
+        ],
+      ),
       child: ElevatedButton.icon(
-        onPressed: _isCalculating ? null : _startCalculation,
-        icon: Icon(icon, color: kRoyalGold),
-        label: Text(label),
+        onPressed: (_isCalculating || isDisabled) ? null : _startCalculation,
+        icon: Icon(icon, color: kRoyalGold, size: 22),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 18, 
+            fontWeight: FontWeight.w900, 
+            letterSpacing: 1.5,
+          ),
+        ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: kPrimaryDark,
+          backgroundColor: Colors.transparent,
           foregroundColor: kRoyalGold,
-          elevation: 8,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         ),
       ),
     );
@@ -378,10 +467,10 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
       ),
       child: Stack(
         children: [
-          const Positioned(top: 0, left: 0, child: Icon(Icons.auto_awesome, size: 14, color: kRoyalGold)),
-          const Positioned(top: 0, right: 0, child: Icon(Icons.auto_awesome, size: 14, color: kRoyalGold)),
-          const Positioned(bottom: 0, left: 0, child: Icon(Icons.auto_awesome, size: 14, color: kRoyalGold)),
-          const Positioned(bottom: 0, right: 0, child: Icon(Icons.auto_awesome, size: 14, color: kRoyalGold)),
+          const Positioned(top: 12, left: 12, child: Icon(Icons.auto_awesome, size: 12, color: kRoyalGold)),
+          const Positioned(top: 12, right: 12, child: Icon(Icons.auto_awesome, size: 12, color: kRoyalGold)),
+          const Positioned(bottom: 12, left: 12, child: Icon(Icons.auto_awesome, size: 12, color: kRoyalGold)),
+          const Positioned(bottom: 12, right: 12, child: Icon(Icons.auto_awesome, size: 12, color: kRoyalGold)),
           
           Column(
             children: [
@@ -392,7 +481,7 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _mode == 'birthday' ? "✨ 您的生日幸运号 ✨" : (_mode == 'phone' ? "📱 您的手机幸运号 📱" : "🎲 随机幸运号 🎲"),
+                  _mode == 'birthday' ? "您的生日幸运号" : (_mode == 'phone' ? "您的手机幸运号" : "随机幸运号"),
                   style: const TextStyle(
                     color: kPrimaryColor,
                     fontSize: 12,
@@ -437,25 +526,60 @@ class _GeneratorScreenState extends State<GeneratorScreen> {
                   ),
                 )).toList(),
               ),
-              const SizedBox(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(width: 40, height: 1, color: kRoyalGold.withOpacity(0.2)),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12.0),
-                    child: Text(
-                      "ROYAL THAI BLESSING",
-                      style: TextStyle(
-                        fontSize: 9, 
-                        color: kRoyalGold, 
-                        fontWeight: FontWeight.w900, 
-                        letterSpacing: 2.5
+              const SizedBox(height: 38),
+              SizedBox(
+                height: 32,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(width: 30, height: 1, color: kRoyalGold.withOpacity(0.2)),
+                    const SizedBox(width: 12),
+                    if (!_displayNumbers.contains("-") && !_isCalculating) 
+                      GestureDetector(
+                        onTap: _isSaved ? null : _handleSave,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _isSaved ? Colors.grey.shade50 : kRoyalGold.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _isSaved ? Icons.check_circle : Icons.bookmark_add, 
+                                size: 14, 
+                                color: _isSaved ? Colors.grey : kRoyalGold
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _isSaved ? "已保存记录" : "保存到我的彩票包",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  color: _isSaved ? Colors.grey : kRoyalGold,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      const Text(
+                        "ROYAL THAI BLESSING",
+                        style: TextStyle(
+                          fontSize: 10, 
+                          color: kRoyalGold, 
+                          fontWeight: FontWeight.w900, 
+                          letterSpacing: 2.5
+                        ),
                       ),
-                    ),
-                  ),
-                  Container(width: 40, height: 1, color: kRoyalGold.withOpacity(0.2)),
-                ],
+                    const SizedBox(width: 12),
+                    Container(width: 30, height: 1, color: kRoyalGold.withOpacity(0.2)),
+                  ],
+                ),
               ),
             ],
           ),

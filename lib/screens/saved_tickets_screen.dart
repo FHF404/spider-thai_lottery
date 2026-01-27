@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thai_lottery/widgets/standard_app_bar.dart';
 import 'package:thai_lottery/models/lottery_result.dart';
 import 'package:thai_lottery/models/saved_ticket.dart';
 import 'package:thai_lottery/services/storage_service.dart';
@@ -58,18 +59,10 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F8),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: kPrimaryColor),
-          onPressed: widget.onBack,
-        ),
-        title: const Text(
-          "我保存的彩票",
-          style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+      appBar: StandardAppBar(
+        title: "我保存的彩票",
+        showBackButton: true,
+        onBack: widget.onBack,
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
@@ -189,7 +182,7 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        isPending ? "下期开奖: 2023-11-01" : "开奖日期: ${ticket.drawDate ?? '等待对比'}",
+                        isPending ? "下期开奖: ${LotteryUtils.getNextDrawDate()}" : "开奖日期: ${ticket.drawDate ?? '等待对比'}",
                         style: TextStyle(color: Colors.grey.shade400, fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                       if (isWon)
@@ -231,20 +224,21 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
                           "(${ticket.winAmount})",
                           style: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w500),
                         ),
-                      ] else if (isPending) ...[
-                        const SizedBox(width: 10),
+                      ],
+                      if (isPending) ...[
+                        const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: kPrimaryColor.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
-                            "倒计时 2天",
-                            style: TextStyle(color: kPrimaryColor, fontSize: 10, fontWeight: FontWeight.w800),
+                          child: Text(
+                            "倒计时 ${LotteryUtils.getCountdownDays()}天",
+                            style: const TextStyle(color: kPrimaryColor, fontSize: 10, fontWeight: FontWeight.w800),
                           ),
                         ),
-                      ]
+                      ],
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -259,15 +253,50 @@ class _SavedTicketsScreenState extends State<SavedTicketsScreen> {
                   const SizedBox(height: 24),
                   Divider(color: Colors.grey.shade100, height: 1),
                   const SizedBox(height: 16),
-                  Text(
-                    "添加日期: ${ticket.addDate}",
-                    style: TextStyle(color: Colors.grey.shade300, fontSize: 10, fontWeight: FontWeight.bold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "添加日期: ${ticket.addDate}",
+                        style: TextStyle(color: Colors.grey.shade300, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                      _buildSourceTag(ticket.type),
+                    ],
                   ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSourceTag(String type) {
+    String label = "手动";
+    IconData icon = Icons.edit_note;
+    Color color = Colors.blue;
+
+    switch (type) {
+      case 'scan': label = "扫码"; icon = Icons.qr_code_scanner; color = Colors.orange; break;
+      case 'birthday': label = "生日"; icon = Icons.cake; color = Colors.pink; break;
+      case 'phone': label = "手机"; icon = Icons.phone_iphone; color = Colors.indigo; break;
+      case 'random': label = "随机"; icon = Icons.casino; color = Colors.purple; break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w900)),
+        ],
       ),
     );
   }

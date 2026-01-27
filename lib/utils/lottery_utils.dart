@@ -89,4 +89,24 @@ class LotteryUtils {
     }
     return hasChanged;
   }
+
+  static String getNextDrawDate([DateTime? fromDate]) {
+    final now = fromDate ?? DateTime.now();
+    
+    if (now.day < 16) {
+      return DateFormat('yyyy-MM-16').format(now);
+    } else {
+      final nextMonth = DateTime(now.year, now.month + 1, 1);
+      return DateFormat('yyyy-MM-dd').format(nextMonth);
+    }
+  }
+
+  static int getCountdownDays([DateTime? fromDate]) {
+    final now = fromDate ?? DateTime.now();
+    final nextDrawStr = getNextDrawDate(now);
+    final nextDraw = DateFormat('yyyy-MM-dd').parse(nextDrawStr);
+    // 只比较日期部分
+    final today = DateTime(now.year, now.month, now.day);
+    return nextDraw.difference(today).inDays;
+  }
 }

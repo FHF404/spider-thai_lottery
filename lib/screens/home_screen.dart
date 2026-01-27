@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:thai_lottery/models/lottery_result.dart';
+import 'package:thai_lottery/widgets/standard_app_bar.dart';
 import 'package:thai_lottery/widgets/result_card.dart';
 import 'package:thai_lottery/theme.dart';
+import 'package:thai_lottery/services/notification_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final VoidCallback onCheckTicket;
   final VoidCallback onViewHistory;
   final VoidCallback onOpenGenerator;
@@ -22,11 +24,53 @@ class HomeScreen extends StatelessWidget {
   });
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkPermission();
+  }
+
+  void _checkPermission() async {
+    final service = NotificationService();
+    bool granted = await service.isPermissionGranted();
+    if (!granted) {
+      // 稍微延迟一下
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) _showCustomPermissionDialog();
+      });
+    }
+  }
+
+  void _showCustomPermissionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _PermissionDialog(
+        onConfirm: () async {
+          Navigator.pop(context);
+          final service = NotificationService();
+          await service.requestPermission();
+        },
+        onCancel: () => Navigator.pop(context),
+      ),
+    );
+  }
+
+  void _handleNotificationClick() async {
+    final service = NotificationService();
+    await service.showTestNotification();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackground,
       body: RefreshIndicator(
-        onRefresh: onRefresh,
+        onRefresh: widget.onRefresh,
         displacement: 100,
         color: kPrimaryColor,
         child: CustomScrollView(
@@ -38,24 +82,21 @@ class HomeScreen extends StatelessWidget {
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   const SizedBox(height: 8),
-                  if (latestResult != null)
+                  if (widget.latestResult != null)
                     ResultCard(
-                      result: latestResult!,
+                      result: widget.latestResult!,
                       isHero: true,
-                      onCheckTicket: onCheckTicket,
+                      onCheckTicket: widget.onCheckTicket,
                     )
                   else
                     const Center(child: Padding(
                       padding: EdgeInsets.all(40.0),
                       child: CircularProgressIndicator(),
                     )),
-                  _buildSectionHeader("最近开奖历史", onViewHistory),
+                  _buildSectionHeader("最近开奖历史", widget.onViewHistory),
                   const SizedBox(height: 16),
-                  if (historyResults.length > 1) ResultCard(result: historyResults[1]),
-                  if (historyResults.length > 2) ResultCard(result: historyResults[2]),
-                  // _buildAIBanner(),
-                  // const SizedBox(height: 16),
-                  // ...historyResults.skip(2).take(4).map((r) => ResultCard(result: r)),
+                  if (widget.historyResults.length > 1) ResultCard(result: widget.historyResults[1]),
+                  if (widget.historyResults.length > 2) ResultCard(result: widget.historyResults[2]),
                   const SizedBox(height: 100), // Bottom nav padding
                 ]),
               ),
@@ -67,42 +108,31 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildAppBar() {
-    return SliverAppBar(
-      pinned: true,
-      backgroundColor: kPrimaryColor,
-      title: const Text(
-        "泰国彩票开奖",
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
-        ),
-      ),
-      centerTitle: true,
+    return StandardSliverAppBar(
+      title: "泰国彩票开奖",
       actions: [
         Stack(
           children: [
             IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: Color(0xFFFFD700), size: 28),
-              onPressed: () {},
+              icon: const Icon(Icons.notifications_outlined, color: Color(0xFFFFD700), size: 24),
+              onPressed: _handleNotificationClick,
             ),
             Positioned(
-              right: 12,
-              top: 12,
+              right: 14,
+              top: 14,
               child: Container(
-                width: 8,
-                height: 8,
+                width: 7,
+                height: 7,
                 decoration: BoxDecoration(
                   color: Colors.red,
                   shape: BoxShape.circle,
-                  border: Border.all(color: kPrimaryColor),
+                  border: Border.all(color: kPrimaryColor, width: 1.5),
                 ),
               ),
             ),
           ],
         ),
       ],
-      expandedHeight: 60,
     );
   }
 
@@ -132,107 +162,108 @@ class HomeScreen extends StatelessWidget {
       ],
     );
   }
+}
 
-  Widget _buildAIBanner() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3E5F5),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.purple.shade50),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -20,
-            top: -20,
-            child: Container(
-              width: 80,
-              height: 80,
+class _PermissionDialog extends StatelessWidget {
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  const _PermissionDialog({required this.onConfirm, required this.onCancel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            )
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFD700).withOpacity(0.1),
+                color: kPrimaryColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
+              child: const Icon(
+                Icons.notifications_active_rounded,
+                color: kPrimaryColor,
+                size: 40,
+              ),
             ),
-          ),
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5),
-                  ],
-                ),
-                child: const Icon(Icons.psychology, color: kPrimaryColor, size: 24),
+            const SizedBox(height: 20),
+            const Text(
+              "开启中奖通知",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: kPrimaryDark,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFD700),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            "广告",
-                            style: TextStyle(
-                              color: kPrimaryDark,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          "AI 号码预测工具",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: kPrimaryDark,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      "试试我们全新的彩票模拟器",
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
-                ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "不错过任何一次好运！\n开奖后我们将第一时间为您推送结果。",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                height: 1.5,
               ),
-              ElevatedButton(
-                onPressed: onOpenGenerator,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: onCancel,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      "稍后再说",
+                      style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  elevation: 4,
                 ),
-                child: const Text("打开", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: onConfirm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      "立即开启",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

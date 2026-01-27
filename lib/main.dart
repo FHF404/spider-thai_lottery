@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:thai_lottery/screens/home_screen.dart';
 import 'package:thai_lottery/screens/history_screen.dart';
@@ -9,16 +11,37 @@ import 'package:thai_lottery/screens/profile_screen.dart';
 import 'package:thai_lottery/screens/check_ticket_screen.dart';
 import 'package:thai_lottery/screens/result_screen.dart';
 import 'package:thai_lottery/screens/saved_tickets_screen.dart';
-import 'package:thai_lottery/widgets/result_card.dart';
+import 'package:thai_lottery/screens/settings_screen.dart';
+import 'package:thai_lottery/screens/legal_detail_screen.dart';
 import 'package:thai_lottery/models/lottery_result.dart';
 import 'package:thai_lottery/services/api_service.dart';
 import 'package:thai_lottery/theme.dart';
 import 'package:thai_lottery/utils/lottery_utils.dart';
 import 'package:thai_lottery/models/saved_ticket.dart';
+import 'package:thai_lottery/services/notification_service.dart';
+
+// 后台消息处理器 (必须是全局函数)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("Handling a background message: ${message.messageId}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 初始化 Firebase
+  await Firebase.initializeApp();
+  
+  // 设置后台消息处理器
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   await initializeDateFormatting('th', null);
+
+  // 初始化通知服务
+  final notificationService = NotificationService();
+  await notificationService.init();
+
   runApp(const MyApp());
 }
 
@@ -53,15 +76,13 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  String _currentView = 'home'; // home, history, profile, generator, check, result
-  String _resultStatus = 'loss';
+  String _currentView = 'home';
   String _checkedTicket = "";
   Map<String, dynamic> _winStatus = {};
-  
-  // 数据状态
   LotteryResult? _latestResult;
   List<LotteryResult> _historyResults = [];
   bool _isLoading = true;
+  String? _generatorMode;
 
   @override
   void initState() {
@@ -84,16 +105,21 @@ class _MainScreenState extends State<MainScreen> {
 
   void _changeView(String view) {
     setState(() {
-      _currentView = view;
+      if (view.startsWith('generator:')) {
+        _generatorMode = view.split(':')[1];
+        _currentView = 'generator';
+      } else {
+        if (view == 'generator') _generatorMode = null;
+        _currentView = view;
+      }
     });
   }
 
   void _handleCheckTicket(String number) {
     setState(() {
       _checkedTicket = number;
-      // 使用工具类进行严谨核对
       _winStatus = LotteryUtils.checkWinStatus(
-        SavedTicket(id: 'temp', number: number, addDate: '2000-01-01'), 
+        SavedTicket(id: 'temp', number: number, addDate: '2000-01-01', type: 'manual'), 
         _latestResult
       );
       _currentView = 'result';
@@ -118,59 +144,77 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  int _getMainPageIndex(String view) {
+    if (view == 'home') return 0;
+    if (view == 'history') return 1;
+    if (view == 'generator' || view.startsWith('generator:')) return 2;
+    if (view == 'profile' || view == 'saved_tickets') return 3; 
+    return -1;
+  }
+
   Widget _buildContent() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
     }
 
-    switch (_currentView) {
-      case 'home':
-        return HomeScreen(
-          onCheckTicket: () => _changeView('check'),
-          onViewHistory: () => _changeView('history'),
-          onOpenGenerator: () => _changeView('generator'),
-          latestResult: _latestResult,
-          historyResults: _historyResults,
-          onRefresh: _handleRefresh,
-        );
-      case 'history':
-        return HistoryScreen(
-          onBack: () => _changeView('home'),
-          historyResults: _historyResults,
-          onRefresh: _handleRefresh,
-        );
-      case 'generator':
-        return const GeneratorScreen();
-      case 'profile':
-        return ProfileScreen(onChangeView: _changeView);
-      case 'check':
-        return CheckTicketScreen(
-          onBack: () => _changeView('home'),
-          onCheck: _handleCheckTicket,
-        );
-      case 'result':
-        return ResultScreen(
-          winStatus: _winStatus,
-          ticketNumber: _checkedTicket,
-          latestResult: _latestResult,
-          onBack: () => _changeView('check'),
-        );
-      case 'saved_tickets':
-        return SavedTicketsScreen(onBack: () => _changeView('profile'));
-      default:
-        return HomeScreen(
-          onCheckTicket: () => _changeView('check'),
-          onViewHistory: () => _changeView('history'),
-          onOpenGenerator: () => _changeView('generator'),
-          latestResult: _latestResult,
-          historyResults: _historyResults,
-          onRefresh: _handleRefresh,
-        );
+    if (_currentView == 'check') {
+      return CheckTicketScreen(
+        onBack: () => _changeView('home'),
+        onCheck: _handleCheckTicket,
+      );
     }
+    if (_currentView == 'result') {
+      return ResultScreen(
+        winStatus: _winStatus,
+        ticketNumber: _checkedTicket,
+        latestResult: _latestResult,
+        onBack: () => _changeView('check'),
+        onHome: () => _changeView('home'),
+      );
+    }
+    if (_currentView == 'settings') {
+      return SettingsScreen(onBack: () => _changeView('profile'), onChangeView: _changeView);
+    }
+    if (_currentView == 'saved_tickets') {
+      return SavedTicketsScreen(onBack: () => _changeView('profile'));
+    }
+    if (_currentView.startsWith('legal_detail:')) {
+      final type = _currentView.split(':').last;
+      return LegalDetailScreen(type: type, onBack: () => _changeView('settings'));
+    }
+
+    int mainIndex = _getMainPageIndex(_currentView);
+    if (mainIndex == -1) mainIndex = 0;
+
+    return IndexedStack(
+      index: mainIndex,
+      children: [
+        HomeScreen(
+          onCheckTicket: () => _changeView('check'),
+          onViewHistory: () => _changeView('history'),
+          onOpenGenerator: () => _changeView('generator'),
+          latestResult: _latestResult,
+          historyResults: _historyResults,
+          onRefresh: _handleRefresh,
+        ),
+        HistoryScreen(
+          onBack: () => _changeView('home'),
+          historyResults: _historyResults,
+          onRefresh: _handleRefresh,
+        ),
+        GeneratorScreen(
+          onViewWallet: () => _changeView('saved_tickets'),
+          initialMode: _generatorMode,
+        ),
+        ProfileScreen(
+          onChangeView: _changeView,
+          initialLatestResult: _latestResult,
+        ),
+      ],
+    );
   }
 
   Widget _buildBottomNav() {
-    // Determine active tab
     String activeTab = 'home';
     if (_currentView == 'profile' || _currentView == 'saved_tickets') activeTab = 'profile';
     if (_currentView == 'history') activeTab = 'history';
