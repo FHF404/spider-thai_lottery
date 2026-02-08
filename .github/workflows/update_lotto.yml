@@ -11,7 +11,7 @@ on:
       force_notify:
         description: '是否强制发送通知（即使数据无变化）'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 jobs:

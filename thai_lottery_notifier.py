@@ -90,9 +90,12 @@ def send_push_notifications():
                     "body": item["body"]
                 },
                 "android": {
+                    "priority": "high",
                     "notification": {
+                        "channel_id": "fcm_channel",
                         "click_action": "FLUTTER_NOTIFICATION_CLICK",
-                        "sound": "default"
+                        "sound": "default",
+                        "notification_priority": "PRIORITY_MAX"
                     }
                 }
             }
