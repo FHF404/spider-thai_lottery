@@ -89,6 +89,12 @@ def send_push_notifications():
                     "title": item["title"],
                     "body": item["body"]
                 },
+                "data": {
+                    "title": item["title"],
+                    "body": item["body"],
+                    "type": "lottery_update",
+                    "click_action": "FLUTTER_NOTIFICATION_CLICK"
+                },
                 "android": {
                     "priority": "high",
                     "notification": {
