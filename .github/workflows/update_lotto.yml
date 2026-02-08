@@ -7,6 +7,12 @@ on:
     # 2. 开奖区间高频：1, 2, 16, 17号的 07:00 - 10:00 UTC (14:00 - 17:00 泰国时间)，每 15 分钟运行一次
     - cron: '*/15 7-9 1,2,16,17 * *'
   workflow_dispatch: # 允许手动触发
+    inputs:
+      force_notify:
+        description: '是否强制发送通知（即使数据无变化）'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   update-lotto:
@@ -46,7 +52,9 @@ jobs:
 
       # Phase C: Message Notifier
       - name: Send Push Notification
-        if: steps.git-check.outputs.changed == 'true'
+        if: |
+          always() &&
+          (steps.git-check.outputs.changed == 'true' || github.event.inputs.force_notify == 'true')
         env:
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: python thai_lottery_notifier.py
