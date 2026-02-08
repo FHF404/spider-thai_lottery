@@ -3,7 +3,8 @@
 
 # Except these
 !/.github/
-!/scraper.py
+!/thai_lottery_scraper.py
+!/thai_lottery_notifier.py
 !/lotto_results.json
 !/README.md
 !/PRIVACY_POLICY.md
