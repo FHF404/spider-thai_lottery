@@ -50,27 +50,39 @@ def send_push_notification(test_mode=False):
             draw_date = latest.get('date', '')
             print(f"Found update for {draw_date}. Proceeding to send notifications...")
 
-        # 定义多语言推送任务
+        # 日期本地化逻辑：尝试将泰文月份转换为中/英
+        thai_months = {
+            "มกราคม": ("January", "1月"), "กุมภาพันธ์": ("February", "2月"), "มีนาคม": ("March", "3月"),
+            "เมษายน": ("April", "4月"), "พฤษภาคม": ("May", "5月"), "มิถุนายน": ("June", "6月"),
+            "กรกฎาคม": ("July", "7月"), "สิงหาคม": ("August", "8月"), "กันยายน": ("September", "9月"),
+            "ตุลาคม": ("October", "10月"), "พฤศจิกายน": ("November", "11月"), "ธันวาคม": ("December", "12月")
+        }
+        
+        # 默认使用原始日期
+        date_zh, date_en, date_th = draw_date, draw_date, draw_date
+        
+        for th_m, (en_m, zh_m) in thai_months.items():
+            if th_m in draw_date:
+                date_en = draw_date.replace(th_m, en_m)
+                date_zh = draw_date.replace(th_m, zh_m)
+                break
+
+        # 定义多语言推送任务 (移除通用的 lottery_updates，防止重复)
         tasks = [
             {
                 "topic": "lottery_updates_zh",
                 "title": "【Lotto Go】开奖结果更新 🎉",
-                "body": f"泰国彩票 ({draw_date}) 已开奖，快来查看您的好运吧！"
+                "body": f"泰国彩票 ({date_zh}) 已开奖，快来查看您的好运吧！"
             },
             {
                 "topic": "lottery_updates_th",
                 "title": "【Lotto Go】ผลสลากออกแล้ว 🎉",
-                "body": f"สลากกินแบ่งรัฐบาล งวดวันที่ {draw_date} ตรวจผลได้แล้ววันนี้!"
+                "body": f"สลากกินแบ่งรัฐบาล งวดวันที่ {date_th} ตรวจผลได้แล้ววันนี้!"
             },
             {
                 "topic": "lottery_updates_en",
                 "title": "【Lotto Go】Results Updated 🎉",
-                "body": f"Thai Lottery ({draw_date}) results are now available. Check your luck!"
-            },
-            {
-                "topic": "lottery_updates",
-                "title": "🎉 Lottery Results Updated!",
-                "body": f"New draw results for {draw_date} are available now!"
+                "body": f"Thai Lottery ({date_en}) results are now available. Check your luck!"
             }
         ]
 
