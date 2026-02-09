@@ -85,7 +85,7 @@ def send_push_notifications():
     }
 
     # --- [DEBUG] 精准推送测试 ---
-    debug_token = "fSUT1Ji6RFqujjEaj5FnOy:APA91bEowKyDrNxS7SjLpzEuluhq_rDBuVuB-fAIlZF1E38ElSMdJ3PLQVnPmEfk9_PkPLinEIGC4mGJw9mCWMwRFBFEoDea4MtzQ3LsJZzhL9h6WgpKwMY"
+    debug_token = "djfp0I1qSzGuAMrxwZJ-TQ:APA91bGbUuoCM1DzMG8qMU10LAowYY3qeDNVNv-B_jVZGPXCWMUYP1F67qDP2bzlm2Dxh05OTNIq5gLpQqiqiWUhxdRWE574kFZvmdVR5I2AdkhiP6OhOrQ"
     debug_body = {
         "message": {
             "token": debug_token,
