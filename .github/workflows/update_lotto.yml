@@ -29,8 +29,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install dependencies
-        run: |
-          pip install requests beautifulsoup4 google-auth google-auth-oauthlib google-auth-httplib2
+        run: pip install -r requirements.txt
 
       # Phase A: Data Fetcher
       - name: Run Data Fetcher
@@ -56,5 +55,5 @@ jobs:
           always() &&
           (steps.git-check.outputs.changed == 'true' || github.event.inputs.force_notify == 'true')
         env:
-          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
         run: python thai_lottery_notifier.py

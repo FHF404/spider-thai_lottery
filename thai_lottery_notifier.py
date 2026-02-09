@@ -1,152 +1,113 @@
-import json
+"""
+Thai Lottery 推送通知脚本
+用于 GitHub Actions 自动推送开奖结果通知
+"""
 import os
-import requests
-from google.oauth2 import service_account
-from google.auth.transport.requests import Request
-from datetime import datetime
+import json
+import datetime
+import firebase_admin
+from firebase_admin import credentials, messaging
 
 # ==========================================
 # Configuration
 # ==========================================
 FILE_PATH = 'lotto_results.json'
 
-def send_push_notifications():
-    # 1. Load latest data from JSON
-    if not os.path.exists(FILE_PATH):
-        print(f"Error: {FILE_PATH} not found. Cannot send notifications.")
-        return
+def send_push_notification(test_mode=False):
+    """
+    发送开奖结果通知 (支持中、泰、英三语)
+    
+    Args:
+        test_mode: 如果为 True，跳过日期检查直接发送
+    """
+    # 严格从环境变量读取 (GitHub Actions 安全规范)
+    service_account_info = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY')
+
+    if not service_account_info:
+        print("Error: FIREBASE_SERVICE_ACCOUNT_KEY environment variable not set.")
+        return False
 
     try:
+        # 初始化 Firebase
+        cert_dict = json.loads(service_account_info)
+        cred = credentials.Certificate(cert_dict)
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(cred)
+
+        # 读取最新开奖数据
+        if not os.path.exists(FILE_PATH):
+            print(f"Error: {FILE_PATH} not found.")
+            return False
+        
         with open(FILE_PATH, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            latest = data.get("latest", {})
+            latest = data.get('latest', {})
+            
             if not latest:
                 print("Error: No 'latest' data found in JSON.")
-                return
-    except Exception as e:
-        print(f"Error reading {FILE_PATH}: {e}")
-        return
+                return False
+            
+            draw_date = latest.get('date', '')
+            print(f"Found update for {draw_date}. Proceeding to send notifications...")
 
-    # 2. Get Service Account from environment
-    service_account_info = os.environ.get('FIREBASE_SERVICE_ACCOUNT_KEY')
-    if not service_account_info:
-        print("Error: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.")
-        return
-
-    try:
-        info = json.loads(service_account_info)
-    except Exception as e:
-        print(f"Error parsing service account JSON: {e}")
-        return
-
-    # 3. Authenticate with Firebase
-    try:
-        scopes = ['https://www.googleapis.com/auth/firebase.messaging']
-        creds = service_account.Credentials.from_service_account_info(info, scopes=scopes)
-        creds.refresh(Request())
-        token = creds.token
-        project_id = info.get('project_id')
-    except Exception as e:
-        print(f"Authentication failed: {e}")
-        return
-
-    # 4. Define multi-language notification payloads
-    # Using the date from latest data to make it dynamic if needed
-    draw_date = latest.get("date", "")
-    
-    notifications = [
-        {
-            "topic": "lottery_updates_zh",
-            "title": "🎉 泰国彩票开奖结果已更新！",
-            "body": f"最新内容 ({draw_date}) 已上线，快来核对您的好运吧！🔔"
-        },
-        {
-            "topic": "lottery_updates_th",
-            "title": "🎉 ผลสลากกินแบ่งรัฐบาลออกแล้ว!",
-            "body": f"อัปเดตงวดวันที่ {draw_date} แล้ว ตรวจหวยของคุณได้เลยที่นี่! 🔔"
-        },
-        {
-            "topic": "lottery_updates_en",
-            "title": "🎉 Thai Lottery Results Updated!",
-            "body": f"New draw results for {draw_date} are live. Check yours now! 🔔"
-        },
-        {
-            "topic": "lottery_updates",
-            "title": "🎉 Lotto Results Updated!",
-            "body": f"New draw data for {draw_date} is available now! 🔔"
-        }
-    ]
-
-    # 5. Send messages via FCM V1 API
-    url = f'https://fcm.googleapis.com/v1/projects/{project_id}/messages:send'
-    headers = {
-        'Authorization': f'Bearer {token}',
-        'Content-Type': 'application/json'
-    }
-
-    # --- [DEBUG] 精准推送测试 ---
-    debug_token = "djfp0I1qSzGuAMrxwZJ-TQ:APA91bGbUuoCM1DzMG8qMU10LAowYY3qeDNVNv-B_jVZGPXCWMUYP1F67qDP2bzlm2Dxh05OTNIq5gLpQqiqiWUhxdRWE574kFZvmdVR5I2AdkhiP6OhOrQ"
-    debug_body = {
-        "message": {
-            "token": debug_token,
-            "notification": {
-                "title": "🚀 精准打击测试 (Token)",
-                "body": f"如果你看到这条，说明 Firebase 密钥和项目 ID 是对的！时间: {datetime.now().strftime('%H:%M:%S')}"
+        # 定义多语言推送任务
+        tasks = [
+            {
+                "topic": "lottery_updates_zh",
+                "title": "【Lotto Go】开奖结果更新 🎉",
+                "body": f"泰国彩票 ({draw_date}) 已开奖，快来查看您的好运吧！"
             },
-            "android": {
-                "priority": "HIGH",
-                "notification": {
-                    "channel_id": "fcm_channel",
-                    "click_action": "FLUTTER_NOTIFICATION_CLICK"
-                }
+            {
+                "topic": "lottery_updates_th",
+                "title": "【Lotto Go】ผลสลากออกแล้ว 🎉",
+                "body": f"สลากกินแบ่งรัฐบาล งวดวันที่ {draw_date} ตรวจผลได้แล้ววันนี้!"
+            },
+            {
+                "topic": "lottery_updates_en",
+                "title": "【Lotto Go】Results Updated 🎉",
+                "body": f"Thai Lottery ({draw_date}) results are now available. Check your luck!"
+            },
+            {
+                "topic": "lottery_updates",
+                "title": "🎉 Lottery Results Updated!",
+                "body": f"New draw results for {draw_date} are available now!"
             }
-        }
-    }
-    
-    try:
-        resp = requests.post(url, headers=headers, data=json.dumps(debug_body))
-        print(f"🎯 [DEBUG] Token Test Result: {resp.status_code}")
+        ]
+
+        # 循环发送
+        success_count = 0
+        for task in tasks:
+            try:
+                message = messaging.Message(
+                    notification=messaging.Notification(
+                        title=task["title"],
+                        body=task["body"],
+                    ),
+                    topic=task["topic"],
+                    android=messaging.AndroidConfig(
+                        priority='high',
+                        notification=messaging.AndroidNotification(
+                            channel_id='fcm_channel',
+                            icon='launcher_icon',
+                            sound='default'
+                        )
+                    )
+                )
+                response = messaging.send(message)
+                print(f'Successfully sent to {task["topic"]}: {response}')
+                success_count += 1
+            except Exception as e:
+                print(f'Failed to send to {task["topic"]}: {e}')
+
+        print(f"\nTask Completed. Success: {success_count}/{len(tasks)}")
+        return success_count > 0
+
     except Exception as e:
-        print(f"❌ [DEBUG] Token Test Failed: {e}")
-    # --- [DEBUG END] ---
-
-    print(f"[{datetime.now()}] Starting topic distribution...")
-    for item in notifications:
-        body = {
-            "message": {
-                "topic": item["topic"],
-                "notification": {
-                    "title": item["title"],
-                    "body": item["body"]
-                },
-                "data": {
-                    "title": item["title"],
-                    "body": item["body"],
-                    "type": "lottery_update",
-                    "click_action": "FLUTTER_NOTIFICATION_CLICK"
-                },
-                "android": {
-                    "priority": "HIGH",
-                    "notification": {
-                        "channel_id": "fcm_channel",
-                        "click_action": "FLUTTER_NOTIFICATION_CLICK",
-                        "sound": "default",
-                        "notification_priority": "PRIORITY_MAX"
-                    }
-                }
-            }
-        }
-
-        try:
-            response = requests.post(url, headers=headers, json=body, timeout=20)
-            if response.status_code == 200:
-                print(f"✅ Sent to {item['topic']}: {response.status_code}")
-            else:
-                print(f"❌ Failed for {item['topic']}: {response.status_code} - {response.text}")
-        except Exception as e:
-            print(f"⚠️ Exception sending to {item['topic']}: {e}")
-
-    print("Notification process completed.")
+        print(f"Failed to send push notification: {e}")
+        return False
 
 if __name__ == "__main__":
-    send_push_notifications()
+    import sys
+    is_test = "--test" in sys.argv
+    success = send_push_notification(test_mode=is_test)
+    exit(0 if success else 1)
