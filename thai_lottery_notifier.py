@@ -32,7 +32,9 @@ def send_push_notification(test_mode=False):
         cert_dict = json.loads(service_account_info)
         cred = credentials.Certificate(cert_dict)
         if not firebase_admin._apps:
-            firebase_admin.initialize_app(cred)
+            firebase_admin.initialize_app(cred, {
+                'databaseURL': 'https://thailkottery-default-rtdb.firebaseio.com/'
+            })
 
         # 读取最新开奖数据
         if not os.path.exists(FILE_PATH):
@@ -41,6 +43,15 @@ def send_push_notification(test_mode=False):
         
         with open(FILE_PATH, 'r', encoding='utf-8') as f:
             data = json.load(f)
+
+            # 同步全量数据到 Realtime Database (NEW: 0 Latency Sync)
+            try:
+                from firebase_admin import db
+                db.reference('/latest_result').set(data)
+                print("[INFO] Successfully synced data to Realtime Database.")
+            except Exception as e:
+                print(f"[WARNING] Database sync failed: {e}")
+
             latest = data.get('latest', {})
             
             if not latest:
