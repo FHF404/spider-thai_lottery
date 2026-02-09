@@ -69,6 +69,11 @@ def send_push_notifications():
             "topic": "lottery_updates_en",
             "title": "🎉 Thai Lottery Results Updated!",
             "body": f"New draw results for {draw_date} are live. Check yours now! 🔔"
+        },
+        {
+            "topic": "lottery_updates",
+            "title": "🎉 Lotto Results Updated!",
+            "body": f"New draw data for {draw_date} is available now! 🔔"
         }
     ]
 
@@ -96,7 +101,7 @@ def send_push_notifications():
                     "click_action": "FLUTTER_NOTIFICATION_CLICK"
                 },
                 "android": {
-                    "priority": "high",
+                    "priority": "HIGH",
                     "notification": {
                         "channel_id": "fcm_channel",
                         "click_action": "FLUTTER_NOTIFICATION_CLICK",
