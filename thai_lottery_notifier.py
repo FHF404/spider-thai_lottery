@@ -84,8 +84,33 @@ def send_push_notifications():
         'Content-Type': 'application/json'
     }
 
-    print(f"[{datetime.now()}] Starting notification dispatch...")
+    # --- [DEBUG] 精准推送测试 ---
+    debug_token = "fSUT1Ji6RFqujjEaj5FnOy:APA91bEowKyDrNxS7SjLpzEuluhq_rDBuVuB-fAIlZF1E38ElSMdJ3PLQVnPmEfk9_PkPLinEIGC4mGJw9mCWMwRFBFEoDea4MtzQ3LsJZzhL9h6WgpKwMY"
+    debug_body = {
+        "message": {
+            "token": debug_token,
+            "notification": {
+                "title": "🚀 精准打击测试 (Token)",
+                "body": f"如果你看到这条，说明 Firebase 密钥和项目 ID 是对的！时间: {datetime.now().strftime('%H:%M:%S')}"
+            },
+            "android": {
+                "priority": "HIGH",
+                "notification": {
+                    "channel_id": "fcm_channel",
+                    "click_action": "FLUTTER_NOTIFICATION_CLICK"
+                }
+            }
+        }
+    }
     
+    try:
+        resp = requests.post(url, headers=headers, data=json.dumps(debug_body))
+        print(f"🎯 [DEBUG] Token Test Result: {resp.status_code}")
+    except Exception as e:
+        print(f"❌ [DEBUG] Token Test Failed: {e}")
+    # --- [DEBUG END] ---
+
+    print(f"[{datetime.now()}] Starting topic distribution...")
     for item in notifications:
         body = {
             "message": {
